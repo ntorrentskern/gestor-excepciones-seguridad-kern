@@ -1,20 +1,18 @@
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DashboardStats } from "@/components/dashboard/dashboard-stats";
-import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { ProximasRevisionList } from "@/components/dashboard/proximas-revision-list";
+import { ExcepcionesTable } from "@/components/excepciones/excepciones-table";
 
-export default function DashboardPage() {
+export default function ExcepcionesPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            Panel de control
+            Excepciones
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Resumen operativo, gráficos y actividad reciente del sistema.
+            Inventario completo con filtros por estado y tipo.
           </p>
         </div>
         <Button asChild>
@@ -25,15 +23,7 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-6">
-          <DashboardStats />
-          <ProximasRevisionList />
-        </div>
-        <div className="xl:sticky xl:top-24 xl:self-start">
-          <ActivityFeed />
-        </div>
-      </div>
+      <ExcepcionesTable />
     </div>
   );
 }

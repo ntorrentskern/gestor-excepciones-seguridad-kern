@@ -1,0 +1,370 @@
+[
+  {
+    "id": "EXC-2026-001",
+    "tipo_excepcion": "Regla Firewall",
+    "origen_peticion": "OTS - Infraestructura",
+    "solicitante_email": "ana.garcia@empresa.com",
+    "activo_afectado": "FW-DMZ-01 / puerto 8443",
+    "justificacion": "Acceso temporal de proveedor para auditoría de cumplimiento SOC2.",
+    "control_compensatorio": "Registro de sesiones y revisión diaria de logs FW.",
+    "estado": "Aprobada",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-08-12",
+    "fecha_revision": "2026-09-10",
+    "aprobador_email": "laura.ots@empresa.com",
+    "fecha_decision": "2026-08-13",
+    "historial": [
+      {
+        "id": "aud-001-1",
+        "tipo": "Creada",
+        "actor_email": "ana.garcia@empresa.com",
+        "timestamp": "2026-08-12T09:15:00",
+        "detalle": "Alta de excepción para acceso de proveedor SOC2.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      },
+      {
+        "id": "aud-001-2",
+        "tipo": "Aprobada",
+        "actor_email": "laura.ots@empresa.com",
+        "timestamp": "2026-08-13T11:40:00",
+        "detalle": "Aprobada con control compensatorio de logs FW.",
+        "estado_anterior": "Pendiente",
+        "estado_nuevo": "Aprobada"
+      },
+      {
+        "id": "aud-001-3",
+        "tipo": "Ampliada",
+        "actor_email": "laura.ots@empresa.com",
+        "timestamp": "2026-09-01T16:05:00",
+        "detalle": "Ampliación de revisión del 01/09/2026 al 10/09/2026 por retraso del proveedor.",
+        "estado_anterior": "Aprobada",
+        "estado_nuevo": "Aprobada"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-002",
+    "tipo_excepcion": "EDR",
+    "origen_peticion": "Soporte Workstation",
+    "solicitante_email": "carlos.ruiz@empresa.com",
+    "activo_afectado": "WS-FIN-045",
+    "justificacion": "Exclusión de firma EDR para herramienta legacy de contabilidad.",
+    "control_compensatorio": "Restricción de red y monitorización local semanal.",
+    "estado": "Pendiente",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-09-01",
+    "fecha_revision": "2026-09-12",
+    "aprobador_email": null,
+    "fecha_decision": null,
+    "historial": [
+      {
+        "id": "aud-002-1",
+        "tipo": "Creada",
+        "actor_email": "carlos.ruiz@empresa.com",
+        "timestamp": "2026-09-01T10:22:00",
+        "detalle": "Solicitud de exclusión EDR en estación financiera.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-003",
+    "tipo_excepcion": "USB",
+    "origen_peticion": "Marketing",
+    "solicitante_email": "lucia.mendez@empresa.com",
+    "activo_afectado": "Laptop LM-8821",
+    "justificacion": "Transferencia de material gráfico a agencia externa sin acceso VPN.",
+    "control_compensatorio": "USB cifrado corporativo y borrado tras entrega.",
+    "estado": "Aprobada",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-07-20",
+    "fecha_revision": "2026-09-08",
+    "aprobador_email": "miguel.ots@empresa.com",
+    "fecha_decision": "2026-07-21",
+    "historial": [
+      {
+        "id": "aud-003-1",
+        "tipo": "Creada",
+        "actor_email": "lucia.mendez@empresa.com",
+        "timestamp": "2026-07-20T14:10:00",
+        "detalle": "Solicitud USB para campaña creativa.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      },
+      {
+        "id": "aud-003-2",
+        "tipo": "Aprobada",
+        "actor_email": "miguel.ots@empresa.com",
+        "timestamp": "2026-07-21T09:05:00",
+        "detalle": "Aprobada con USB cifrado de inventario OTS.",
+        "estado_anterior": "Pendiente",
+        "estado_nuevo": "Aprobada"
+      },
+      {
+        "id": "aud-003-3",
+        "tipo": "Cancelada",
+        "actor_email": "miguel.ots@empresa.com",
+        "timestamp": "2026-08-05T12:30:00",
+        "detalle": "Cancelada tras cierre anticipado de la campaña.",
+        "estado_anterior": "Aprobada",
+        "estado_nuevo": "Cancelada"
+      },
+      {
+        "id": "aud-003-4",
+        "tipo": "Reactivada",
+        "actor_email": "laura.ots@empresa.com",
+        "timestamp": "2026-08-18T08:45:00",
+        "detalle": "Reactivada por nueva entrega a agencia. Nueva revisión 08/09/2026.",
+        "estado_anterior": "Cancelada",
+        "estado_nuevo": "Aprobada"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-004",
+    "tipo_excepcion": "Uso IA",
+    "origen_peticion": "Desarrollo Software",
+    "solicitante_email": "pedro.lopez@empresa.com",
+    "activo_afectado": "GitHub Copilot / equipo backend",
+    "justificacion": "Uso de asistente IA con datos no sensibles para acelerar desarrollo.",
+    "control_compensatorio": "Política de no pegar secretos ni PII en prompts.",
+    "estado": "Pendiente",
+    "temporalidad": "Permanente",
+    "fecha_solicitud": "2026-09-02",
+    "fecha_revision": "2026-10-02",
+    "aprobador_email": null,
+    "fecha_decision": null,
+    "historial": [
+      {
+        "id": "aud-004-1",
+        "tipo": "Creada",
+        "actor_email": "pedro.lopez@empresa.com",
+        "timestamp": "2026-09-02T11:00:00",
+        "detalle": "Solicitud permanente de uso de Copilot en backend.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-005",
+    "tipo_excepcion": "Proxy",
+    "origen_peticion": "Investigación I+D",
+    "solicitante_email": "maria.santos@empresa.com",
+    "activo_afectado": "Proxy corporativo / categoría Research",
+    "justificacion": "Acceso a repositorios académicos bloqueados por categoría web.",
+    "control_compensatorio": "Allowlist de dominios revisada quincenalmente.",
+    "estado": "Aprobada",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-08-01",
+    "fecha_revision": "2026-09-15",
+    "aprobador_email": "laura.ots@empresa.com",
+    "fecha_decision": "2026-08-02",
+    "historial": [
+      {
+        "id": "aud-005-1",
+        "tipo": "Creada",
+        "actor_email": "maria.santos@empresa.com",
+        "timestamp": "2026-08-01T16:40:00",
+        "detalle": "Alta para categoría Research en proxy.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      },
+      {
+        "id": "aud-005-2",
+        "tipo": "Aprobada",
+        "actor_email": "laura.ots@empresa.com",
+        "timestamp": "2026-08-02T10:15:00",
+        "detalle": "Aprobada con allowlist de 12 dominios académicos.",
+        "estado_anterior": "Pendiente",
+        "estado_nuevo": "Aprobada"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-006",
+    "tipo_excepcion": "Regla Firewall",
+    "origen_peticion": "Integraciones ERP",
+    "solicitante_email": "javier.torres@empresa.com",
+    "activo_afectado": "SAP-PROD / IP 10.20.5.12",
+    "justificacion": "Conectividad outbound a SaaS de facturación electrónica.",
+    "control_compensatorio": "",
+    "estado": "Rechazada",
+    "temporalidad": "Permanente",
+    "fecha_solicitud": "2026-08-25",
+    "fecha_revision": "2026-09-20",
+    "aprobador_email": "miguel.ots@empresa.com",
+    "fecha_decision": "2026-08-26",
+    "historial": [
+      {
+        "id": "aud-006-1",
+        "tipo": "Creada",
+        "actor_email": "javier.torres@empresa.com",
+        "timestamp": "2026-08-25T13:20:00",
+        "detalle": "Solicitud de salida permanente SAP → SaaS facturación.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      },
+      {
+        "id": "aud-006-2",
+        "tipo": "Rechazada",
+        "actor_email": "miguel.ots@empresa.com",
+        "timestamp": "2026-08-26T09:50:00",
+        "detalle": "Rechazada: el proveedor debe conectarse vía API Gateway corporativo.",
+        "estado_anterior": "Pendiente",
+        "estado_nuevo": "Rechazada"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-007",
+    "tipo_excepcion": "EDR",
+    "origen_peticion": "Laboratorio QA",
+    "solicitante_email": "sofia.navarro@empresa.com",
+    "activo_afectado": "LAB-QA-03",
+    "justificacion": "Desactivar aislamiento de red durante pruebas de malware controlado.",
+    "control_compensatorio": "VLAN aislada de laboratorio y supervisión presencial.",
+    "estado": "Caducada",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-06-10",
+    "fecha_revision": "2026-08-10",
+    "aprobador_email": "laura.ots@empresa.com",
+    "fecha_decision": "2026-06-11",
+    "historial": [
+      {
+        "id": "aud-007-1",
+        "tipo": "Creada",
+        "actor_email": "sofia.navarro@empresa.com",
+        "timestamp": "2026-06-10T08:00:00",
+        "detalle": "Excepción temporal para laboratorio QA.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      },
+      {
+        "id": "aud-007-2",
+        "tipo": "Aprobada",
+        "actor_email": "laura.ots@empresa.com",
+        "timestamp": "2026-06-11T12:00:00",
+        "detalle": "Aprobada en VLAN aislada.",
+        "estado_anterior": "Pendiente",
+        "estado_nuevo": "Aprobada"
+      },
+      {
+        "id": "aud-007-3",
+        "tipo": "Caducada",
+        "actor_email": "sistema@ots.local",
+        "timestamp": "2026-08-10T23:59:00",
+        "detalle": "Caducada automáticamente al alcanzar fecha de revisión.",
+        "estado_anterior": "Aprobada",
+        "estado_nuevo": "Caducada"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-008",
+    "tipo_excepcion": "USB",
+    "origen_peticion": "Operaciones Planta",
+    "solicitante_email": "raul.iglesias@empresa.com",
+    "activo_afectado": "Tablet OT-221",
+    "justificacion": "Actualización firmware de PLC sin conectividad de red en planta.",
+    "control_compensatorio": "Dispositivo OT inventariado y escaneo previo/posterior.",
+    "estado": "Aprobada",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-08-28",
+    "fecha_revision": "2026-09-07",
+    "aprobador_email": "miguel.ots@empresa.com",
+    "fecha_decision": "2026-08-28",
+    "historial": [
+      {
+        "id": "aud-008-1",
+        "tipo": "Creada",
+        "actor_email": "raul.iglesias@empresa.com",
+        "timestamp": "2026-08-28T07:30:00",
+        "detalle": "Ventana de mantenimiento PLC.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      },
+      {
+        "id": "aud-008-2",
+        "tipo": "Aprobada",
+        "actor_email": "miguel.ots@empresa.com",
+        "timestamp": "2026-08-28T08:10:00",
+        "detalle": "Aprobación urgente para mantenimiento de planta.",
+        "estado_anterior": "Pendiente",
+        "estado_nuevo": "Aprobada"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-009",
+    "tipo_excepcion": "Proxy",
+    "origen_peticion": "Recursos Humanos",
+    "solicitante_email": "elena.vargas@empresa.com",
+    "activo_afectado": "Portal formación externa",
+    "justificacion": "Acceso a plataforma e-learning fuera del catálogo permitido.",
+    "control_compensatorio": "Acceso solo desde grupo AD RH-Formacion.",
+    "estado": "Pendiente",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-09-03",
+    "fecha_revision": "2026-09-25",
+    "aprobador_email": null,
+    "fecha_decision": null,
+    "historial": [
+      {
+        "id": "aud-009-1",
+        "tipo": "Creada",
+        "actor_email": "elena.vargas@empresa.com",
+        "timestamp": "2026-09-03T15:45:00",
+        "detalle": "Solicitud de acceso a plataforma e-learning.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      }
+    ]
+  },
+  {
+    "id": "EXC-2026-010",
+    "tipo_excepcion": "Uso IA",
+    "origen_peticion": "Atención al Cliente",
+    "solicitante_email": "diego.fernandez@empresa.com",
+    "activo_afectado": "Chatbot interno piloto",
+    "justificacion": "Prueba controlada de resumen de tickets con datos anonimizados.",
+    "control_compensatorio": "Dataset anonimizado y revisión semanal de prompts.",
+    "estado": "Aprobada",
+    "temporalidad": "Temporal",
+    "fecha_solicitud": "2026-07-15",
+    "fecha_revision": "2026-09-18",
+    "aprobador_email": "laura.ots@empresa.com",
+    "fecha_decision": "2026-07-16",
+    "historial": [
+      {
+        "id": "aud-010-1",
+        "tipo": "Creada",
+        "actor_email": "diego.fernandez@empresa.com",
+        "timestamp": "2026-07-15T12:00:00",
+        "detalle": "Piloto de resumen de tickets con IA.",
+        "estado_anterior": null,
+        "estado_nuevo": "Pendiente"
+      },
+      {
+        "id": "aud-010-2",
+        "tipo": "Aprobada",
+        "actor_email": "laura.ots@empresa.com",
+        "timestamp": "2026-07-16T09:20:00",
+        "detalle": "Aprobada para piloto de 60 días.",
+        "estado_anterior": "Pendiente",
+        "estado_nuevo": "Aprobada"
+      },
+      {
+        "id": "aud-010-3",
+        "tipo": "Ampliada",
+        "actor_email": "laura.ots@empresa.com",
+        "timestamp": "2026-08-20T17:00:00",
+        "detalle": "Ampliación de revisión al 18/09/2026 para cerrar métricas del piloto.",
+        "estado_anterior": "Aprobada",
+        "estado_nuevo": "Aprobada"
+      }
+    ]
+  }
+]

@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gestor de Excepciones de Seguridad
 
-## Getting Started
+Aplicación web para la Oficina Técnica de Seguridad (OTS): inventario, seguimiento y alta de excepciones corporativas.
 
-First, run the development server:
+## Fase 1 (actual)
+
+- Frontend Next.js + React + Tailwind CSS + shadcn/ui
+- Datos en `localStorage`, sembrados desde `src/data/excepciones.mock.json`
+- Sin autenticación real ni base de datos
+
+## Arranque
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Estructura relevante
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Dashboard: contadores y alertas de revisión ≤ 14 días |
+| `/excepciones` | Tabla con filtros, búsqueda y acceso al detalle |
+| `/excepciones/nueva` | Formulario de alta |
+| `/excepciones/[id]` | Ficha detalle + acciones OTS + historial de auditoría |
 
-## Learn More
+### Acciones OTS (Fase 1, actor simulado)
 
-To learn more about Next.js, take a look at the following resources:
+Desde el detalle se puede **aprobar**, **rechazar**, **ampliar** revisión, **cancelar** y **reactivar**. Cada acción genera un evento en el historial.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Capa de datos preparada para Fase 2:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Tipos: `src/types/excepcion.ts`
+- Mock: `src/data/excepciones.mock.json`
+- Repositorio: `src/lib/excepciones/repository.ts` (`ExcepcionesRepository`)
+- Estado UI: `src/context/excepciones-context.tsx`
 
-## Deploy on Vercel
+Para integrar Supabase más adelante, implementa la misma interfaz `ExcepcionesRepository` y sustituye la exportación `excepcionesRepository`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Fase 2 (planificada)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Supabase (PostgreSQL)
+- SSO Azure AD (sesión ~30 días)
+- Despliegue en Vercel
