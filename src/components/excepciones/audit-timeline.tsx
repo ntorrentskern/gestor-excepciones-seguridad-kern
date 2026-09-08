@@ -6,6 +6,7 @@ import {
   FilePlus2,
   History,
   MessageSquare,
+  Pencil,
   RotateCcw,
   ShieldOff,
   TimerOff,
@@ -36,6 +37,7 @@ const iconByTipo: Record<TipoEventoAuditoria, LucideIcon> = {
   Cancelada: ShieldOff,
   Reactivada: RotateCcw,
   Caducada: TimerOff,
+  Editada: Pencil,
   Comentario: MessageSquare,
 };
 
@@ -51,6 +53,7 @@ const toneByTipo: Record<TipoEventoAuditoria, string> = {
     "bg-amber-500/15 text-amber-700 ring-amber-500/25 dark:text-amber-300",
   Caducada:
     "bg-zinc-500/15 text-zinc-700 ring-zinc-500/25 dark:text-zinc-300",
+  Editada: "bg-indigo-500/15 text-indigo-700 ring-indigo-500/25 dark:text-indigo-300",
   Comentario:
     "bg-muted text-muted-foreground ring-border",
 };

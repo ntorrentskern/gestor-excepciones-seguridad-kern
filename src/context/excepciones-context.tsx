@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import {
   excepcionesRepository,
   type AmpliarInput,
@@ -20,6 +21,7 @@ import {
   requiereAtencionRevision,
 } from "@/lib/excepciones/utils";
 import type {
+  EditarExcepcionInput,
   Excepcion,
   ExcepcionFilters,
   NuevaExcepcionInput,
@@ -32,6 +34,7 @@ interface ExcepcionesContextValue {
   refresh: () => Promise<void>;
   getById: (id: string) => Excepcion | undefined;
   create: (input: NuevaExcepcionInput) => Promise<Excepcion>;
+  editar: (id: string, input: EditarExcepcionInput) => Promise<Excepcion>;
   aprobar: (id: string, input?: DecisionInput) => Promise<Excepcion>;
   rechazar: (id: string, input?: DecisionInput) => Promise<Excepcion>;
   cancelar: (id: string, input?: DecisionInput) => Promise<Excepcion>;
@@ -52,7 +55,14 @@ function replaceInList(list: Excepcion[], updated: Excepcion): Excepcion[] {
   return list.map((item) => (item.id === updated.id ? updated : item));
 }
 
+function sortById(list: Excepcion[]): Excepcion[] {
+  return [...list].sort((a, b) =>
+    a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: "base" })
+  );
+}
+
 export function ExcepcionesProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [excepciones, setExcepciones] = useState<Excepcion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +72,7 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       const data = await excepcionesRepository.list();
-      setExcepciones(data);
+      setExcepciones(sortById(data));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al cargar excepciones"
@@ -73,8 +83,12 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (pathname === "/login") {
+      setLoading(false);
+      return;
+    }
     void refresh();
-  }, [refresh]);
+  }, [refresh, pathname]);
 
   const getById = useCallback(
     (id: string) => excepciones.find((e) => e.id === id),
@@ -83,8 +97,14 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
 
   const create = useCallback(async (input: NuevaExcepcionInput) => {
     const created = await excepcionesRepository.create(input);
-    setExcepciones((prev) => [created, ...prev]);
+    setExcepciones((prev) => sortById([created, ...prev]));
     return created;
+  }, []);
+
+  const editar = useCallback(async (id: string, input: EditarExcepcionInput) => {
+    const updated = await excepcionesRepository.editar(id, input);
+    setExcepciones((prev) => replaceInList(prev, updated));
+    return updated;
   }, []);
 
   const aprobar = useCallback(async (id: string, input?: DecisionInput) => {
@@ -139,7 +159,8 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
           const blob = [
             item.id,
             item.tipo_excepcion,
-            item.origen_peticion,
+            item.origen_solicitud,
+            item.jira_ticket_id ?? "",
             item.solicitante_email,
             item.activo_afectado,
             item.justificacion,
@@ -180,6 +201,7 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
       refresh,
       getById,
       create,
+      editar,
       aprobar,
       rechazar,
       cancelar,
@@ -196,6 +218,7 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
       refresh,
       getById,
       create,
+      editar,
       aprobar,
       rechazar,
       cancelar,

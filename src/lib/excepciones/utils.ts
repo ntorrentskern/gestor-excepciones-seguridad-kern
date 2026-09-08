@@ -1,5 +1,11 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
-import type { Excepcion } from "@/types/excepcion";
+import {
+  addDays,
+  addMonths,
+  differenceInCalendarDays,
+  format,
+  parseISO,
+} from "date-fns";
+import type { Excepcion, Temporalidad } from "@/types/excepcion";
 
 /** Días restantes hasta fecha_revision (negativo si ya pasó). */
 export function diasHastaRevision(
@@ -9,17 +15,32 @@ export function diasHastaRevision(
   return differenceInCalendarDays(parseISO(fechaRevision), desde);
 }
 
-/** Excepciones activas (pendientes o aprobadas). */
+/** Excepciones activas (pendientes o aprobadas, aún dentro de vigencia). */
 export function esActiva(excepcion: Excepcion): boolean {
   return excepcion.estado === "Pendiente" || excepcion.estado === "Aprobada";
 }
 
-/** Revisión dentro de los próximos N días (incluye vencidas recientes). */
+/**
+ * Si está Pendiente/Aprobada y ya pasó la fecha de revisión,
+ * debe tratarse como Caducada (pendiente de revisar).
+ */
+export function debeEstarCaducada(
+  excepcion: Pick<Excepcion, "estado" | "fecha_revision">,
+  hoy: string = hoyISO()
+): boolean {
+  return (
+    (excepcion.estado === "Pendiente" || excepcion.estado === "Aprobada") &&
+    excepcion.fecha_revision < hoy
+  );
+}
+
+/** Revisión dentro de los próximos N días, o ya caducada. */
 export function requiereAtencionRevision(
   excepcion: Excepcion,
   ventanaDias = 14,
   desde: Date = new Date()
 ): boolean {
+  if (excepcion.estado === "Caducada") return true;
   if (!esActiva(excepcion)) return false;
   const dias = diasHastaRevision(excepcion.fecha_revision, desde);
   return dias <= ventanaDias;
@@ -52,9 +73,25 @@ export function sumarDiasISO(fecha: string, dias: number): string {
   return format(addDays(parseISO(fecha), dias), "yyyy-MM-dd");
 }
 
-export function generarSiguienteId(excepciones: Excepcion[]): string {
-  const year = new Date().getFullYear();
-  const prefix = `EXC-${year}-`;
+export function sumarMesesISO(fecha: string, meses: number): string {
+  return format(addMonths(parseISO(fecha), meses), "yyyy-MM-dd");
+}
+
+/** Fecha de revisión por defecto: Temporal = +6 meses; Permanente = +12 meses. */
+export function fechaRevisionPorDefecto(
+  temporalidad: Temporalidad,
+  desde: string = hoyISO()
+): string {
+  return sumarMesesISO(desde, temporalidad === "Temporal" ? 6 : 12);
+}
+
+/** Helper UI: fecha por defecto al ampliar (+30 días). */
+export function fechaAmpliacionPorDefecto(fechaActual: string): string {
+  return sumarDiasISO(fechaActual, 30);
+}
+
+export function generarSiguienteId(excepciones: { id: string }[]): string {
+  const prefix = "EXC-CIB-";
   let max = 0;
 
   for (const exc of excepciones) {

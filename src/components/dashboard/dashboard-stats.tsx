@@ -7,7 +7,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Label,
   Pie,
   PieChart,
   XAxis,
@@ -22,14 +21,17 @@ import {
 } from "@/components/ui/card";
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useExcepciones } from "@/context/excepciones-context";
-import { ESTADOS_EXCEPCION, TIPOS_EXCEPCION } from "@/types/excepcion";
+import {
+  ESTADOS_EXCEPCION,
+  TIPOS_EXCEPCION,
+  TIPOS_EXCEPCION_CORTO,
+  type TipoExcepcion,
+} from "@/types/excepcion";
 
 const estadoChartConfig = {
   Pendiente: { label: "Pendiente", color: "var(--chart-3)" },
@@ -38,6 +40,14 @@ const estadoChartConfig = {
   Cancelada: { label: "Cancelada", color: "var(--chart-5)" },
   Caducada: { label: "Caducada", color: "var(--chart-1)" },
 } satisfies ChartConfig;
+
+const estadoColorByName: Record<string, string> = {
+  Pendiente: "var(--chart-3)",
+  Aprobada: "var(--chart-2)",
+  Rechazada: "var(--chart-4)",
+  Cancelada: "var(--chart-5)",
+  Caducada: "var(--chart-1)",
+};
 
 const tipoChartConfig = {
   total: { label: "Excepciones", color: "var(--chart-1)" },
@@ -50,15 +60,16 @@ export function DashboardStats() {
     return ESTADOS_EXCEPCION.map((estado) => ({
       estado,
       total: excepciones.filter((e) => e.estado === estado).length,
-      fill: `var(--color-${estado})`,
+      fill: estadoColorByName[estado],
     })).filter((d) => d.total > 0);
   }, [excepciones]);
 
   const tipoData = useMemo(() => {
     return TIPOS_EXCEPCION.map((tipo) => ({
       tipo,
+      label: TIPOS_EXCEPCION_CORTO[tipo as TipoExcepcion],
       total: excepciones.filter((e) => e.tipo_excepcion === tipo).length,
-    }));
+    })).filter((d) => d.total > 0);
   }, [excepciones]);
 
   const totalEstados = estadoData.reduce((acc, d) => acc + d.total, 0);
@@ -76,14 +87,16 @@ export function DashboardStats() {
       value: stats.pendientes,
       description: "Requieren decisión OTS",
       icon: Clock3,
-      accent: "text-amber-700 bg-amber-500/10 dark:text-amber-400 dark:bg-amber-500/15",
+      accent:
+        "text-amber-700 bg-amber-500/10 dark:text-amber-400 dark:bg-amber-500/15",
     },
     {
       title: "Revisión ≤ 14 días",
       value: stats.proximasRevision,
       description: "Atención prioritaria",
       icon: AlertTriangle,
-      accent: "text-orange-700 bg-orange-500/10 dark:text-orange-400 dark:bg-orange-500/15",
+      accent:
+        "text-orange-700 bg-orange-500/10 dark:text-orange-400 dark:bg-orange-500/15",
     },
   ];
 
@@ -131,66 +144,60 @@ export function DashboardStats() {
                 Sin datos para el gráfico.
               </p>
             ) : (
-              <ChartContainer
-                config={estadoChartConfig}
-                className="mx-auto aspect-square max-h-[280px]"
-              >
-                <PieChart>
-                  <ChartTooltip
-                    content={<ChartTooltipContent nameKey="estado" hideLabel />}
-                  />
-                  <Pie
-                    data={estadoData}
-                    dataKey="total"
-                    nameKey="estado"
-                    innerRadius={58}
-                    outerRadius={90}
-                    strokeWidth={2}
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative mx-auto aspect-square w-full max-w-[240px]">
+                  <ChartContainer
+                    config={estadoChartConfig}
+                    className="h-full w-full aspect-auto"
                   >
-                    {estadoData.map((entry) => (
-                      <Cell key={entry.estado} fill={entry.fill} />
-                    ))}
-                    <Label
-                      content={({ viewBox }) => {
-                        if (
-                          viewBox &&
-                          "cx" in viewBox &&
-                          "cy" in viewBox
-                        ) {
-                          return (
-                            <text
-                              x={viewBox.cx}
-                              y={viewBox.cy}
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                            >
-                              <tspan
-                                x={viewBox.cx}
-                                y={viewBox.cy}
-                                className="fill-foreground text-2xl font-semibold"
-                              >
-                                {totalEstados}
-                              </tspan>
-                              <tspan
-                                x={viewBox.cx}
-                                y={(viewBox.cy ?? 0) + 18}
-                                className="fill-muted-foreground text-xs"
-                              >
-                                total
-                              </tspan>
-                            </text>
-                          );
+                    <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent nameKey="estado" hideLabel />
                         }
-                        return null;
-                      }}
-                    />
-                  </Pie>
-                  <ChartLegend
-                    content={<ChartLegendContent nameKey="estado" />}
-                    className="-translate-y-1 flex-wrap gap-2"
-                  />
-                </PieChart>
-              </ChartContainer>
+                      />
+                      <Pie
+                        data={estadoData}
+                        dataKey="total"
+                        nameKey="estado"
+                        innerRadius="62%"
+                        outerRadius="88%"
+                        strokeWidth={2}
+                        cx="50%"
+                        cy="50%"
+                        startAngle={90}
+                        endAngle={-270}
+                      >
+                        {estadoData.map((entry) => (
+                          <Cell key={entry.estado} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-semibold leading-none tabular-nums text-foreground">
+                      {totalEstados}
+                    </span>
+                    <span className="mt-1 text-[11px] leading-none text-muted-foreground">
+                      total
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {estadoData.map((entry) => (
+                    <div
+                      key={entry.estado}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                    >
+                      <span
+                        className="size-2.5 shrink-0 rounded-[2px]"
+                        style={{ backgroundColor: entry.fill }}
+                      />
+                      <span>{entry.estado}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -199,13 +206,17 @@ export function DashboardStats() {
           <CardHeader>
             <CardTitle className="text-base">Volumen por tipo</CardTitle>
             <CardDescription>
-              Firewall, EDR, USB, Uso IA y Proxy.
+              Solo tipos con al menos una excepción.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
               <p className="py-10 text-center text-sm text-muted-foreground">
                 Cargando…
+              </p>
+            ) : tipoData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                Sin datos para el gráfico.
               </p>
             ) : (
               <ChartContainer
@@ -214,18 +225,15 @@ export function DashboardStats() {
               >
                 <BarChart
                   data={tipoData}
-                  margin={{ left: 0, right: 8, top: 8, bottom: 0 }}
+                  margin={{ left: 0, right: 8, top: 8, bottom: 8 }}
                 >
                   <CartesianGrid vertical={false} />
                   <XAxis
-                    dataKey="tipo"
+                    dataKey="label"
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
                     interval={0}
-                    tickFormatter={(v: string) =>
-                      v.replace("Regla ", "").replace("Uso ", "")
-                    }
                   />
                   <YAxis
                     allowDecimals={false}
@@ -234,7 +242,18 @@ export function DashboardStats() {
                     width={28}
                   />
                   <ChartTooltip
-                    content={<ChartTooltipContent hideLabel />}
+                    content={
+                      <ChartTooltipContent
+                        labelKey="tipo"
+                        nameKey="total"
+                        labelFormatter={(_, payload) => {
+                          const row = payload?.[0]?.payload as
+                            | { tipo?: string; label?: string }
+                            | undefined;
+                          return row?.tipo ?? row?.label ?? "";
+                        }}
+                      />
+                    }
                   />
                   <Bar
                     dataKey="total"

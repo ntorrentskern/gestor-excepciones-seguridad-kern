@@ -139,11 +139,11 @@ export function ExcepcionesTable() {
               No hay excepciones con los filtros seleccionados.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto px-2">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>ID</TableHead>
+                    <TableHead className="pl-4">ID</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Origen</TableHead>
                     <TableHead>Solicitante</TableHead>
@@ -151,7 +151,7 @@ export function ExcepcionesTable() {
                     <TableHead>Estado</TableHead>
                     <TableHead>Temporalidad</TableHead>
                     <TableHead>Solicitud</TableHead>
-                    <TableHead>Revisión</TableHead>
+                    <TableHead className="pr-4">Revisión</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -161,7 +161,7 @@ export function ExcepcionesTable() {
                       className="cursor-pointer"
                       onClick={() => router.push(`/excepciones/${exc.id}`)}
                     >
-                      <TableCell className="font-mono text-sm font-medium">
+                      <TableCell className="pl-4 font-mono text-sm font-medium">
                         <Link
                           href={`/excepciones/${exc.id}`}
                           className="text-primary hover:underline"
@@ -172,7 +172,8 @@ export function ExcepcionesTable() {
                       </TableCell>
                       <TableCell>{exc.tipo_excepcion}</TableCell>
                       <TableCell className="max-w-[140px] truncate">
-                        {exc.origen_peticion}
+                        {exc.origen_solicitud}
+                        {exc.jira_ticket_id ? ` (${exc.jira_ticket_id})` : ""}
                       </TableCell>
                       <TableCell className="max-w-[180px] truncate text-muted-foreground">
                         {exc.solicitante_email}
@@ -187,7 +188,7 @@ export function ExcepcionesTable() {
                       <TableCell>
                         {formatearFecha(exc.fecha_solicitud)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="pr-4">
                         {formatearFecha(exc.fecha_revision)}
                       </TableCell>
                     </TableRow>

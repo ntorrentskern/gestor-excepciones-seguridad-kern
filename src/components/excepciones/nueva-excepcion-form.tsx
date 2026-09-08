@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,25 +22,33 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useExcepciones } from "@/context/excepciones-context";
+import { fechaRevisionPorDefecto } from "@/lib/excepciones/utils";
 import {
+  APROBADORES_PREDEFINIDOS,
+  APROBADOR_OTRA_OPCION,
   ESTADOS_EXCEPCION,
+  ORIGENES_SOLICITUD,
   TEMPORALIDADES,
   TIPOS_EXCEPCION,
   type EstadoExcepcion,
+  type OrigenSolicitud,
   type Temporalidad,
   type TipoExcepcion,
 } from "@/types/excepcion";
 
 const initialForm = {
   tipo_excepcion: "" as TipoExcepcion | "",
-  origen_peticion: "",
+  origen_solicitud: "" as OrigenSolicitud | "",
+  jira_ticket_id: "",
   solicitante_email: "",
   activo_afectado: "",
   justificacion: "",
   control_compensatorio: "",
   estado: "Pendiente" as EstadoExcepcion,
   temporalidad: "Temporal" as Temporalidad,
-  fecha_revision: "",
+  fecha_revision: fechaRevisionPorDefecto("Temporal"),
+  aprobador_opcion: APROBADORES_PREDEFINIDOS[0] as string,
+  aprobador_otro: "",
 };
 
 export function NuevaExcepcionForm() {
@@ -50,6 +58,24 @@ export function NuevaExcepcionForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const muestraJira = form.origen_solicitud === "Jira";
+  const muestraOtroAprobador = form.aprobador_opcion === APROBADOR_OTRA_OPCION;
+
+  const ayudaRevision = useMemo(() => {
+    if (form.temporalidad === "Temporal") {
+      return "Por defecto: 6 meses desde hoy (editable).";
+    }
+    return "Por defecto: 12 meses desde hoy (editable).";
+  }, [form.temporalidad]);
+
+  function resolveAprobador(): string | null {
+    if (form.aprobador_opcion === APROBADOR_OTRA_OPCION) {
+      const otro = form.aprobador_otro.trim();
+      return otro || null;
+    }
+    return form.aprobador_opcion.trim() || null;
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -58,8 +84,22 @@ export function NuevaExcepcionForm() {
       setError("Selecciona un tipo de excepción.");
       return;
     }
+    if (!form.origen_solicitud) {
+      setError("Selecciona el origen de la solicitud.");
+      return;
+    }
+    if (form.origen_solicitud === "Jira" && !form.jira_ticket_id.trim()) {
+      setError("Indica el ID del ticket de Jira.");
+      return;
+    }
     if (!form.fecha_revision) {
       setError("Indica la fecha de revisión.");
+      return;
+    }
+
+    const aprobador = resolveAprobador();
+    if (!aprobador) {
+      setError("Indica el aprobador (correo o nombre).");
       return;
     }
 
@@ -67,7 +107,9 @@ export function NuevaExcepcionForm() {
       setSubmitting(true);
       const created = await create({
         tipo_excepcion: form.tipo_excepcion,
-        origen_peticion: form.origen_peticion.trim(),
+        origen_solicitud: form.origen_solicitud,
+        jira_ticket_id:
+          form.origen_solicitud === "Jira" ? form.jira_ticket_id.trim() : null,
         solicitante_email: form.solicitante_email.trim(),
         activo_afectado: form.activo_afectado.trim(),
         justificacion: form.justificacion.trim(),
@@ -75,6 +117,7 @@ export function NuevaExcepcionForm() {
         estado: form.estado,
         temporalidad: form.temporalidad,
         fecha_revision: form.fecha_revision,
+        aprobador_email: aprobador,
       });
       router.push(`/excepciones/${created.id}`);
     } catch (err) {
@@ -93,7 +136,8 @@ export function NuevaExcepcionForm() {
           Nueva excepción de seguridad
         </CardTitle>
         <CardDescription>
-          Completa los datos del alta. Se guardará en el almacén local (Fase 1).
+          Los datos se guardan en Neon. El aprobador queda registrado para
+          auditoría.
         </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
@@ -121,34 +165,61 @@ export function NuevaExcepcionForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="origen">Origen de la petición</Label>
-            <Input
-              id="origen"
-              required
-              value={form.origen_peticion}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, origen_peticion: e.target.value }))
+            <Label htmlFor="origen">Origen de la solicitud</Label>
+            <Select
+              value={form.origen_solicitud || undefined}
+              onValueChange={(v) =>
+                setForm((f) => ({
+                  ...f,
+                  origen_solicitud: v as OrigenSolicitud,
+                  jira_ticket_id: v === "Jira" ? f.jira_ticket_id : "",
+                }))
               }
-              placeholder="Ej. OTS - Infraestructura"
-            />
+              required
+            >
+              <SelectTrigger id="origen" className="w-full">
+                <SelectValue placeholder="Correo, Jira, Teams…" />
+              </SelectTrigger>
+              <SelectContent>
+                {ORIGENES_SOLICITUD.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {o}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
+          {muestraJira ? (
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="jira">ID ticket Jira</Label>
+              <Input
+                id="jira"
+                required
+                value={form.jira_ticket_id}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, jira_ticket_id: e.target.value }))
+                }
+                placeholder="Ej. SEC-1234"
+              />
+            </div>
+          ) : null}
+
           <div className="space-y-2">
-            <Label htmlFor="email">Email del solicitante</Label>
+            <Label htmlFor="email">Solicitante</Label>
             <Input
               id="email"
-              type="email"
               required
               value={form.solicitante_email}
               onChange={(e) =>
                 setForm((f) => ({ ...f, solicitante_email: e.target.value }))
               }
-              placeholder="usuario@empresa.com"
+              placeholder="usuario@empresa.com o nombre"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="activo">Activo afectado</Label>
+            <Label htmlFor="activo">Activos afectados</Label>
             <Input
               id="activo"
               required
@@ -187,9 +258,14 @@ export function NuevaExcepcionForm() {
             <Label htmlFor="temporalidad">Temporalidad</Label>
             <Select
               value={form.temporalidad}
-              onValueChange={(v) =>
-                setForm((f) => ({ ...f, temporalidad: v as Temporalidad }))
-              }
+              onValueChange={(v) => {
+                const temporalidad = v as Temporalidad;
+                setForm((f) => ({
+                  ...f,
+                  temporalidad,
+                  fecha_revision: fechaRevisionPorDefecto(temporalidad),
+                }));
+              }}
             >
               <SelectTrigger id="temporalidad" className="w-full">
                 <SelectValue />
@@ -215,7 +291,45 @@ export function NuevaExcepcionForm() {
                 setForm((f) => ({ ...f, fecha_revision: e.target.value }))
               }
             />
+            <p className="text-xs text-muted-foreground">{ayudaRevision}</p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="aprobador">Aprobador</Label>
+            <Select
+              value={form.aprobador_opcion}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, aprobador_opcion: v }))
+              }
+            >
+              <SelectTrigger id="aprobador" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {APROBADORES_PREDEFINIDOS.map((email) => (
+                  <SelectItem key={email} value={email}>
+                    {email}
+                  </SelectItem>
+                ))}
+                <SelectItem value={APROBADOR_OTRA_OPCION}>Otra opción</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {muestraOtroAprobador ? (
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="aprobador-otro">Correo o nombre del aprobador</Label>
+              <Input
+                id="aprobador-otro"
+                required
+                value={form.aprobador_otro}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, aprobador_otro: e.target.value }))
+                }
+                placeholder="nombre@empresa.com o Nombre Apellido"
+              />
+            </div>
+          ) : null}
 
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="justificacion">Justificación</Label>

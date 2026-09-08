@@ -5,10 +5,13 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ListChecks,
+  LogOut,
   PlusCircle,
+  Settings,
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logoutAction } from "@/lib/auth/actions";
 
 const navItems = [
   {
@@ -28,6 +31,12 @@ const navItems = [
     label: "Nueva excepción",
     description: "Alta de registro",
     icon: PlusCircle,
+  },
+  {
+    href: "/ajustes",
+    label: "Ajustes",
+    description: "Perfil de usuario",
+    icon: Settings,
   },
 ];
 
@@ -63,7 +72,7 @@ export function Sidebar() {
                   ? pathname === "/excepciones" ||
                     (pathname.startsWith("/excepciones/") &&
                       pathname !== "/excepciones/nueva")
-                  : pathname === item.href;
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           const Icon = item.icon;
 
@@ -105,9 +114,17 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-border p-4">
-        <p className="text-xs text-muted-foreground">Fase 1 · Datos locales</p>
-        <p className="mt-0.5 text-xs font-medium text-foreground/70">v1.0</p>
+      <div className="space-y-3 border-t border-border p-4">
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <LogOut className="size-4" aria-hidden />
+            Cerrar sesión
+          </button>
+        </form>
+        <p className="px-3 text-xs font-medium text-foreground/70">v1.0</p>
       </div>
     </div>
   );

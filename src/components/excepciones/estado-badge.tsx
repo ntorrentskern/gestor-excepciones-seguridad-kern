@@ -29,6 +29,7 @@ const eventoStyles: Record<TipoEventoAuditoria, string> = {
   Cancelada: "border-violet-200 bg-violet-50 text-violet-900",
   Reactivada: "border-amber-200 bg-amber-50 text-amber-900",
   Caducada: "border-border bg-muted text-muted-foreground",
+  Editada: "border-indigo-200 bg-indigo-50 text-indigo-900",
   Comentario: "border-border bg-card text-foreground",
 };
 

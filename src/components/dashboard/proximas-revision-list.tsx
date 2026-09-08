@@ -30,10 +30,10 @@ export function ProximasRevisionList() {
   const { proximasRevision, loading } = useExcepciones();
 
   return (
-    <Card className="shadow-none ring-orange-200/70">
-      <CardHeader className="border-b border-orange-100/80 bg-orange-50/50">
+    <Card className="shadow-none ring-orange-200/70 dark:ring-orange-500/25">
+      <CardHeader className="border-b border-orange-100/80 bg-orange-50/50 dark:border-orange-500/20 dark:bg-orange-500/10">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex size-9 items-center justify-center rounded-xl bg-orange-500/15 text-orange-700">
+          <div className="mt-0.5 flex size-9 items-center justify-center rounded-xl bg-orange-500/15 text-orange-700 dark:text-orange-400">
             <AlertTriangle className="size-4" aria-hidden />
           </div>
           <div>
@@ -42,7 +42,7 @@ export function ProximasRevisionList() {
             </CardTitle>
             <CardDescription className="mt-1 text-muted-foreground">
               Activas con{" "}
-              <span className="font-medium text-orange-800">
+              <span className="font-medium text-orange-800 dark:text-orange-300">
                 fecha_revision ≤ 14 días
               </span>{" "}
               desde hoy. Prioriza renovación o cierre.
@@ -78,7 +78,9 @@ export function ProximasRevisionList() {
                   <TableRow
                     key={exc.id}
                     className={cn(
-                      critica ? "bg-rose-50/50" : "bg-orange-50/30"
+                      critica
+                        ? "bg-rose-50/50 dark:bg-rose-500/10"
+                        : "bg-orange-50/30 dark:bg-orange-500/10"
                     )}
                   >
                     <TableCell className="font-medium">
@@ -105,8 +107,8 @@ export function ProximasRevisionList() {
                         className={cn(
                           "rounded-md tabular-nums",
                           critica
-                            ? "border-rose-200 bg-rose-50 text-rose-800"
-                            : "border-orange-200 bg-orange-50 text-orange-800"
+                            ? "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-300"
+                            : "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-500/40 dark:bg-orange-500/15 dark:text-orange-300"
                         )}
                       >
                         {dias < 0
