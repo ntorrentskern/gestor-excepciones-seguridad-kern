@@ -1,28 +1,20 @@
-export const TIPOS_EXCEPCION = [
-  "Dispositivo USB",
-  "Acceso herramientas IA",
-  "Instalación de software",
-  "Acceso privilegiado",
-  "Exclusión de EDR / Antivirus",
-  "Acceso web excepcional",
-  "Configuración técnica excepcional",
-  "Otra",
-] as const;
-
-/** Etiquetas cortas para gráficos y resúmenes. */
-export const TIPOS_EXCEPCION_CORTO: Record<
-  (typeof TIPOS_EXCEPCION)[number],
-  string
-> = {
-  "Dispositivo USB": "USB",
-  "Acceso herramientas IA": "Uso IA",
-  "Instalación de software": "Software",
-  "Acceso privilegiado": "Privilegiado",
-  "Exclusión de EDR / Antivirus": "EDR",
-  "Acceso web excepcional": "Acceso web",
-  "Configuración técnica excepcional": "Config. técnica",
-  Otra: "Otra",
-};
+export {
+  DOMINIOS,
+  DOMINIO_LABELS,
+  DOMINIO_PREFIX,
+  TIPOS_EXCEPCION,
+  TIPOS_EXCEPCION_CORTO,
+  TIPOS_POR_DOMINIO,
+  TIPOS_SEGURIDAD,
+  TIPOS_SISTEMAS,
+  TIPOS_HELPDESK,
+  dominioDeTipo,
+  esTipoValidoParaDominio,
+  isDominio,
+  tiposDeDominio,
+  type Dominio,
+  type TipoExcepcion,
+} from "@/types/dominio";
 
 export const ESTADOS_EXCEPCION = [
   "Pendiente",
@@ -65,7 +57,8 @@ export const TIPOS_EVENTO_AUDITORIA = [
   "Comentario",
 ] as const;
 
-export type TipoExcepcion = (typeof TIPOS_EXCEPCION)[number];
+import type { Dominio, TipoExcepcion } from "@/types/dominio";
+
 export type EstadoExcepcion = (typeof ESTADOS_EXCEPCION)[number];
 export type Temporalidad = (typeof TEMPORALIDADES)[number];
 export type OrigenSolicitud = (typeof ORIGENES_SOLICITUD)[number];
@@ -84,6 +77,7 @@ export interface EventoAuditoria {
 
 export interface Excepcion {
   id: string;
+  dominio: Dominio;
   tipo_excepcion: TipoExcepcion;
   /** Canal de entrada de la solicitud */
   origen_solicitud: OrigenSolicitud;
@@ -104,9 +98,11 @@ export interface Excepcion {
 }
 
 export type NuevaExcepcionInput = {
+  dominio: Dominio;
   tipo_excepcion: TipoExcepcion;
   origen_solicitud: OrigenSolicitud;
   jira_ticket_id?: string | null;
+  /** Titular del equipo afectado (para correlación usuario ↔ PC). */
   solicitante_email: string;
   activo_afectado: string;
   justificacion: string;
@@ -116,9 +112,17 @@ export type NuevaExcepcionInput = {
   fecha_revision: string;
   /** Obligatorio: quien registra la excepción. */
   aprobador_email: string;
+  /**
+   * Si quien pide no es el usuario afectado (p. ej. Helpdesk),
+   * se guarda como comentario y no ensucia la correlación.
+   */
+  solicitado_por?: string;
+  /** Sujetos a vincular (usuario, PC, etc.). */
+  sujetos?: import("@/types/sujeto").SujetoInput[];
 };
 
 export type EditarExcepcionInput = {
+  dominio: Dominio;
   tipo_excepcion: TipoExcepcion;
   origen_solicitud: OrigenSolicitud;
   jira_ticket_id?: string | null;
@@ -131,11 +135,13 @@ export type EditarExcepcionInput = {
   fecha_revision: string;
   actorEmail: string;
   motivo?: string;
+  sujetos?: import("@/types/sujeto").SujetoInput[];
 };
 
 export interface ExcepcionFilters {
   estado?: EstadoExcepcion | "Todos";
   tipo_excepcion?: TipoExcepcion | "Todos";
+  dominio?: Dominio | "Todos";
   busqueda?: string;
 }
 

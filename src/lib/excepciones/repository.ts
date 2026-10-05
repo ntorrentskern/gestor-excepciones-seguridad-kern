@@ -6,6 +6,7 @@ import {
   ampliarExcepcion,
   aprobarExcepcion,
   cancelarExcepcion,
+  comentarExcepcion,
   createExcepcion,
   editarExcepcion,
   getExcepcionById,
@@ -17,6 +18,7 @@ import type { ExcepcionesRepository } from "@/lib/excepciones/types";
 
 export type {
   AmpliarInput,
+  ComentarInput,
   DecisionInput,
   ExcepcionesRepository,
   ReactivarInput,
@@ -37,4 +39,5 @@ export const excepcionesRepository: ExcepcionesRepository = {
   cancelar: cancelarExcepcion,
   ampliar: ampliarExcepcion,
   reactivar: reactivarExcepcion,
+  comentar: comentarExcepcion,
 };

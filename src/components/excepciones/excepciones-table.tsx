@@ -28,27 +28,45 @@ import { useExcepciones } from "@/context/excepciones-context";
 import { exportExcepcionesToCsv } from "@/lib/excepciones/export-csv";
 import { formatearFecha } from "@/lib/excepciones/utils";
 import {
+  DOMINIO_LABELS,
+  DOMINIOS,
   ESTADOS_EXCEPCION,
-  TIPOS_EXCEPCION,
+  tiposDeDominio,
+  type Dominio,
   type EstadoExcepcion,
   type TipoExcepcion,
 } from "@/types/excepcion";
 
-export function ExcepcionesTable() {
+type Props = {
+  /** Si se indica, filtra siempre por ese dominio (paneles). */
+  dominioFijo?: Dominio;
+};
+
+export function ExcepcionesTable({ dominioFijo }: Props) {
   const router = useRouter();
   const { filter, loading } = useExcepciones();
   const [estado, setEstado] = useState<EstadoExcepcion | "Todos">("Todos");
   const [tipo, setTipo] = useState<TipoExcepcion | "Todos">("Todos");
+  const [dominio, setDominio] = useState<Dominio | "Todos">(
+    dominioFijo ?? "Todos"
+  );
   const [busqueda, setBusqueda] = useState("");
+
+  const dominioEfectivo = dominioFijo ?? dominio;
+  const tiposFiltro =
+    dominioEfectivo === "Todos"
+      ? DOMINIOS.flatMap((d) => [...tiposDeDominio(d)])
+      : [...tiposDeDominio(dominioEfectivo)];
 
   const rows = useMemo(
     () =>
       filter({
         estado,
         tipo_excepcion: tipo,
+        dominio: dominioEfectivo,
         busqueda,
       }),
-    [filter, estado, tipo, busqueda]
+    [filter, estado, tipo, dominioEfectivo, busqueda]
   );
 
   return (
@@ -67,16 +85,42 @@ export function ExcepcionesTable() {
             Exportar CSV
           </Button>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-2 sm:col-span-3">
+        <CardContent
+          className={`grid gap-4 ${dominioFijo ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}
+        >
+          <div className="space-y-2 sm:col-span-full">
             <Label htmlFor="filtro-busqueda">Buscar</Label>
             <Input
               id="filtro-busqueda"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="ID, solicitante, activo, origen…"
+              placeholder="ID, usuario, equipo, origen…"
             />
           </div>
+          {!dominioFijo ? (
+            <div className="space-y-2">
+              <Label htmlFor="filtro-dominio">Dominio</Label>
+              <Select
+                value={dominio}
+                onValueChange={(v) => {
+                  setDominio(v as Dominio | "Todos");
+                  setTipo("Todos");
+                }}
+              >
+                <SelectTrigger id="filtro-dominio" className="w-full">
+                  <SelectValue placeholder="Dominio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  {DOMINIOS.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {DOMINIO_LABELS[d]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="filtro-estado">Estado</Label>
             <Select
@@ -109,7 +153,7 @@ export function ExcepcionesTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Todos">Todos</SelectItem>
-                {TIPOS_EXCEPCION.map((t) => (
+                {tiposFiltro.map((t) => (
                   <SelectItem key={t} value={t}>
                     {t}
                   </SelectItem>
@@ -144,10 +188,11 @@ export function ExcepcionesTable() {
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="pl-4">ID</TableHead>
+                    {!dominioFijo ? <TableHead>Dominio</TableHead> : null}
                     <TableHead>Tipo</TableHead>
                     <TableHead>Origen</TableHead>
-                    <TableHead>Solicitante</TableHead>
-                    <TableHead>Activo</TableHead>
+                    <TableHead>Usuario afectado</TableHead>
+                    <TableHead>Equipo</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Temporalidad</TableHead>
                     <TableHead>Solicitud</TableHead>
@@ -170,6 +215,9 @@ export function ExcepcionesTable() {
                           {exc.id}
                         </Link>
                       </TableCell>
+                      {!dominioFijo ? (
+                        <TableCell>{DOMINIO_LABELS[exc.dominio]}</TableCell>
+                      ) : null}
                       <TableCell>{exc.tipo_excepcion}</TableCell>
                       <TableCell className="max-w-[140px] truncate">
                         {exc.origen_solicitud}

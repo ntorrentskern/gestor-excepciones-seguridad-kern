@@ -14,7 +14,8 @@ export default function DashboardPage() {
             Panel de control
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Resumen operativo, gráficos y actividad reciente del sistema.
+            Resumen global por dominio (Seguridad, Sistemas, Helpdesk),
+            revisiones próximas y actividad reciente.
           </p>
         </div>
         <Button asChild>

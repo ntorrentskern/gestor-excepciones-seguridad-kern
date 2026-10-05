@@ -7,6 +7,7 @@ import {
   hoyISO,
 } from "@/lib/excepciones/utils";
 import type {
+  Dominio,
   EditarExcepcionInput,
   EstadoExcepcion,
   EventoAuditoria,
@@ -18,16 +19,21 @@ import type {
   TipoEventoAuditoria,
   TipoExcepcion,
 } from "@/types/excepcion";
-import { ACTOR_OTS_ACTUAL } from "@/types/excepcion";
+import { ACTOR_OTS_ACTUAL, esTipoValidoParaDominio, isDominio } from "@/types/excepcion";
 import type {
   AmpliarInput,
   DecisionInput,
   ExcepcionesRepository,
   ReactivarInput,
 } from "@/lib/excepciones/types";
+import {
+  setSujetosForExcepcion,
+} from "@/lib/sujetos/repository";
+import type { SujetoInput } from "@/types/sujeto";
 
 type ExcepcionRow = {
   id: string;
+  dominio: string | null;
   tipo_excepcion: string;
   origen_solicitud: string;
   jira_ticket_id: string | null;
@@ -87,9 +93,15 @@ function mapEvento(row: EventoRow): EventoAuditoria {
   };
 }
 
+function resolveDominio(row: ExcepcionRow): Dominio {
+  if (row.dominio && isDominio(row.dominio)) return row.dominio;
+  return "seguridad";
+}
+
 function mapExcepcion(row: ExcepcionRow, historial: EventoAuditoria[]): Excepcion {
   return {
     id: row.id,
+    dominio: resolveDominio(row),
     tipo_excepcion: row.tipo_excepcion as TipoExcepcion,
     origen_solicitud: row.origen_solicitud as OrigenSolicitud,
     jira_ticket_id: row.jira_ticket_id,
@@ -162,9 +174,17 @@ function applyFilters(
     ) {
       return false;
     }
+    if (
+      filters.dominio &&
+      filters.dominio !== "Todos" &&
+      item.dominio !== filters.dominio
+    ) {
+      return false;
+    }
     if (q) {
       const blob = [
         item.id,
+        item.dominio,
         item.tipo_excepcion,
         item.origen_solicitud,
         item.jira_ticket_id ?? "",
@@ -179,6 +199,42 @@ function applyFilters(
     }
     return true;
   });
+}
+
+function buildDefaultSujetos(input: {
+  solicitante_email: string;
+  activo_afectado: string;
+  sujetos?: SujetoInput[];
+}): SujetoInput[] {
+  if (input.sujetos && input.sujetos.length > 0) {
+    return input.sujetos;
+  }
+
+  const out: SujetoInput[] = [];
+  const email = input.solicitante_email.trim();
+  if (email) {
+    out.push({
+      tipo: "usuario",
+      clave: email,
+      display_name: email,
+    });
+  }
+
+  const activo = input.activo_afectado.trim();
+  if (activo) {
+    const parts = activo
+      .split(/\s*[;|,]\s*|\s+y\s+/i)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    for (const part of parts.length ? parts : [activo]) {
+      out.push({
+        tipo: "activo",
+        clave: part,
+        display_name: part,
+      });
+    }
+  }
+  return out;
 }
 
 function requireEstado(
@@ -306,9 +362,17 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
     if (input.origen_solicitud === "Jira" && !input.jira_ticket_id?.trim()) {
       throw new Error("Indica el ID del ticket de Jira.");
     }
+    if (!isDominio(input.dominio)) {
+      throw new Error("Dominio no válido.");
+    }
+    if (!esTipoValidoParaDominio(input.tipo_excepcion, input.dominio)) {
+      throw new Error(
+        `El tipo «${input.tipo_excepcion}» no pertenece al dominio ${input.dominio}.`
+      );
+    }
 
     const existing = (await sql`SELECT id FROM excepciones`) as { id: string }[];
-    const id = generarSiguienteId(existing);
+    const id = generarSiguienteId(existing, input.dominio);
 
     const estado = input.estado ?? "Pendiente";
     const solicitante = input.solicitante_email.trim();
@@ -324,12 +388,13 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
 
     await sql`
       INSERT INTO excepciones (
-        id, tipo_excepcion, origen_solicitud, jira_ticket_id,
+        id, dominio, tipo_excepcion, origen_solicitud, jira_ticket_id,
         solicitante_email, activo_afectado, justificacion,
         control_compensatorio, estado, temporalidad,
         fecha_solicitud, fecha_revision, aprobador_email, fecha_decision
       ) VALUES (
         ${id},
+        ${input.dominio},
         ${input.tipo_excepcion},
         ${input.origen_solicitud},
         ${jiraTicket},
@@ -351,11 +416,35 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
       {
         tipo: "Creada",
         actor_email: registrador,
-        detalle: "Alta de excepción de seguridad.",
+        detalle: `Alta de excepción (${input.dominio}).`,
         estado_anterior: null,
         estado_nuevo: estado,
       },
       0
+    );
+
+    const solicitadoPor = input.solicitado_por?.trim();
+    if (solicitadoPor) {
+      await insertEvento(
+        id,
+        {
+          tipo: "Comentario",
+          actor_email: registrador,
+          detalle: `Solicitado por: ${solicitadoPor} (no es el usuario afectado del equipo).`,
+          estado_anterior: null,
+          estado_nuevo: null,
+        },
+        1
+      );
+    }
+
+    await setSujetosForExcepcion(
+      id,
+      buildDefaultSujetos({
+        solicitante_email: solicitante,
+        activo_afectado: input.activo_afectado,
+        sujetos: input.sujetos,
+      })
     );
 
     const created = await getByIdInternal(id);
@@ -372,6 +461,7 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
     const next = { ...current, ...patch, id };
     await sql`
       UPDATE excepciones SET
+        dominio = ${next.dominio},
         tipo_excepcion = ${next.tipo_excepcion},
         origen_solicitud = ${next.origen_solicitud},
         jira_ticket_id = ${next.jira_ticket_id},
@@ -398,6 +488,14 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
     if (input.origen_solicitud === "Jira" && !input.jira_ticket_id?.trim()) {
       throw new Error("Indica el ID del ticket de Jira.");
     }
+    if (!isDominio(input.dominio)) {
+      throw new Error("Dominio no válido.");
+    }
+    if (!esTipoValidoParaDominio(input.tipo_excepcion, input.dominio)) {
+      throw new Error(
+        `El tipo «${input.tipo_excepcion}» no pertenece al dominio ${input.dominio}.`
+      );
+    }
 
     const actor = input.actorEmail.trim();
     if (!actor) throw new Error("Indica el actor de la edición.");
@@ -408,6 +506,7 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
         : null;
 
     const next = {
+      dominio: input.dominio,
       tipo_excepcion: input.tipo_excepcion,
       origen_solicitud: input.origen_solicitud,
       jira_ticket_id: jiraTicket,
@@ -422,6 +521,7 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
 
     const cambios: string[] = [];
     const labels: Record<string, string> = {
+      dominio: "dominio",
       tipo_excepcion: "tipo",
       origen_solicitud: "origen",
       jira_ticket_id: "ticket Jira",
@@ -442,7 +542,7 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
       }
     }
 
-    if (cambios.length === 0) {
+    if (cambios.length === 0 && input.sujetos === undefined) {
       throw new Error("No hay cambios que guardar.");
     }
 
@@ -453,41 +553,61 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
         ? hoyISO()
         : current.fecha_decision;
 
-    await sql`
-      UPDATE excepciones SET
-        tipo_excepcion = ${next.tipo_excepcion},
-        origen_solicitud = ${next.origen_solicitud},
-        jira_ticket_id = ${next.jira_ticket_id},
-        solicitante_email = ${next.solicitante_email},
-        activo_afectado = ${next.activo_afectado},
-        justificacion = ${next.justificacion},
-        control_compensatorio = ${next.control_compensatorio},
-        estado = ${next.estado},
-        temporalidad = ${next.temporalidad},
-        fecha_revision = ${next.fecha_revision},
-        fecha_decision = ${fechaDecision},
-        updated_at = NOW()
-      WHERE id = ${id}
-    `;
+    if (cambios.length > 0) {
+      await sql`
+        UPDATE excepciones SET
+          dominio = ${next.dominio},
+          tipo_excepcion = ${next.tipo_excepcion},
+          origen_solicitud = ${next.origen_solicitud},
+          jira_ticket_id = ${next.jira_ticket_id},
+          solicitante_email = ${next.solicitante_email},
+          activo_afectado = ${next.activo_afectado},
+          justificacion = ${next.justificacion},
+          control_compensatorio = ${next.control_compensatorio},
+          estado = ${next.estado},
+          temporalidad = ${next.temporalidad},
+          fecha_revision = ${next.fecha_revision},
+          fecha_decision = ${fechaDecision},
+          updated_at = NOW()
+        WHERE id = ${id}
+      `;
 
-    const motivo = input.motivo?.trim();
-    await insertEvento(
-      id,
-      {
-        tipo: "Editada",
-        actor_email: actor,
-        detalle: [
-          "Edición de datos de la excepción.",
-          ...cambios,
-          motivo ? `Motivo: ${motivo}` : null,
-        ]
-          .filter(Boolean)
-          .join(" "),
-        estado_anterior: current.estado,
-        estado_nuevo: next.estado,
-      },
-      current.historial.length
-    );
+      const motivo = input.motivo?.trim();
+      await insertEvento(
+        id,
+        {
+          tipo: "Editada",
+          actor_email: actor,
+          detalle: [
+            "Edición de datos de la excepción.",
+            ...cambios,
+            motivo ? `Motivo: ${motivo}` : null,
+          ]
+            .filter(Boolean)
+            .join(" "),
+          estado_anterior: current.estado,
+          estado_nuevo: next.estado,
+        },
+        current.historial.length
+      );
+    }
+
+    if (input.sujetos !== undefined) {
+      await setSujetosForExcepcion(id, input.sujetos);
+      if (cambios.length === 0) {
+        await insertEvento(
+          id,
+          {
+            tipo: "Editada",
+            actor_email: actor,
+            detalle: `Vínculos de sujetos actualizados (${input.sujetos.length}).`,
+            estado_anterior: current.estado,
+            estado_nuevo: current.estado,
+          },
+          current.historial.length
+        );
+      }
+    }
 
     return (await getByIdInternal(id))!;
   },
@@ -671,6 +791,34 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
       },
       current.historial.length
     );
+
+    return (await getByIdInternal(id))!;
+  },
+
+  async comentar(id, input) {
+    const current = await getByIdInternal(id);
+    if (!current) throw new Error(`Excepción no encontrada: ${id}`);
+
+    const texto = input.texto?.trim();
+    if (!texto) throw new Error("Escribe un comentario.");
+
+    const actor = input.actorEmail ?? ACTOR_OTS_ACTUAL;
+
+    await insertEvento(
+      id,
+      {
+        tipo: "Comentario",
+        actor_email: actor,
+        detalle: texto,
+        estado_anterior: current.estado,
+        estado_nuevo: current.estado,
+      },
+      current.historial.length
+    );
+
+    await sql`
+      UPDATE excepciones SET updated_at = NOW() WHERE id = ${id}
+    `;
 
     return (await getByIdInternal(id))!;
   },

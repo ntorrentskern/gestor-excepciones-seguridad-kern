@@ -22,6 +22,11 @@ export interface ReactivarInput {
   actorEmail?: string;
 }
 
+export interface ComentarInput {
+  texto: string;
+  actorEmail?: string;
+}
+
 export interface ExcepcionesRepository {
   list(filters?: ExcepcionFilters): Promise<Excepcion[]>;
   getById(id: string): Promise<Excepcion | null>;
@@ -33,4 +38,5 @@ export interface ExcepcionesRepository {
   cancelar(id: string, input?: DecisionInput): Promise<Excepcion>;
   ampliar(id: string, input: AmpliarInput): Promise<Excepcion>;
   reactivar(id: string, input: ReactivarInput): Promise<Excepcion>;
+  comentar(id: string, input: ComentarInput): Promise<Excepcion>;
 }

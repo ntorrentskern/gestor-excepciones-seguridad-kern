@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { AuthProvider } from "@/context/auth-context";
 import { ExcepcionesProvider } from "@/context/excepciones-context";
 import "./globals.css";
 
@@ -18,9 +19,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gestor de Excepciones de Seguridad",
+  title: "Gestor de Excepciones IT",
   description:
-    "Oficina Técnica de Seguridad — inventario y seguimiento de excepciones corporativas",
+    "Inventario y seguimiento de excepciones de Seguridad, Sistemas y Helpdesk",
 };
 
 export default function RootLayout({
@@ -36,9 +37,11 @@ export default function RootLayout({
     >
       <body className={`${plexSans.className} min-h-full`}>
         <ThemeProvider>
-          <ExcepcionesProvider>
-            <AppShell>{children}</AppShell>
-          </ExcepcionesProvider>
+          <AuthProvider>
+            <ExcepcionesProvider>
+              <AppShell>{children}</AppShell>
+            </ExcepcionesProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

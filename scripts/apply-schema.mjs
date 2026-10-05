@@ -10,6 +10,8 @@ const sql = neon(process.env.DATABASE_URL ?? process.env.STORAGE_DATABASE_URL);
 await sql`
   CREATE TABLE IF NOT EXISTS excepciones (
     id TEXT PRIMARY KEY,
+    dominio TEXT NOT NULL DEFAULT 'seguridad'
+      CHECK (dominio IN ('seguridad', 'sistemas', 'helpdesk')),
     tipo_excepcion TEXT NOT NULL,
     origen_solicitud TEXT NOT NULL
       CHECK (origen_solicitud IN ('Correo', 'Jira', 'Teams', 'Otro')),
@@ -35,6 +37,23 @@ await sql`
   )
 `;
 console.log("OK: tabla excepciones");
+
+await sql`
+  ALTER TABLE excepciones
+  ADD COLUMN IF NOT EXISTS dominio TEXT
+`;
+await sql`
+  UPDATE excepciones
+  SET dominio = 'seguridad'
+  WHERE dominio IS NULL OR trim(dominio) = ''
+`;
+try {
+  await sql`ALTER TABLE excepciones ALTER COLUMN dominio SET DEFAULT 'seguridad'`;
+  await sql`ALTER TABLE excepciones ALTER COLUMN dominio SET NOT NULL`;
+} catch {
+  /* ignore if already set */
+}
+await sql`CREATE INDEX IF NOT EXISTS idx_excepciones_dominio ON excepciones (dominio)`;
 
 await sql`
   CREATE TABLE IF NOT EXISTS eventos_auditoria (
@@ -67,3 +86,4 @@ console.log(
   "Tablas:",
   tables.map((t) => t.table_name).join(", ")
 );
+console.log("Tip: para dominio+rol ejecuta también scripts/migrate-fase1.mjs");

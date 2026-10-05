@@ -26,7 +26,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { AuditTimeline } from "@/components/excepciones/audit-timeline";
 import { EstadoBadge } from "@/components/excepciones/estado-badge";
+import { useAuth } from "@/context/auth-context";
 import { useExcepciones } from "@/context/excepciones-context";
+import { listSujetosDeExcepcionAction } from "@/lib/sujetos/actions";
+import { SujetosPicker } from "@/components/sujetos/sujetos-picker";
+import type { Sujeto, SujetoInput } from "@/types/sujeto";
+import { TIPO_SUJETO_LABELS } from "@/types/sujeto";
 import {
   diasHastaRevision,
   fechaAmpliacionPorDefecto,
@@ -36,19 +41,23 @@ import {
   sumarDiasISO,
 } from "@/lib/excepciones/utils";
 import {
-  APROBADORES_PREDEFINIDOS,
   APROBADOR_OTRA_OPCION,
   ACTOR_OTS_ACTUAL,
+  DOMINIO_LABELS,
+  DOMINIOS,
   ESTADOS_MANUALES,
   ORIGENES_SOLICITUD,
   TEMPORALIDADES,
-  TIPOS_EXCEPCION,
+  tiposDeDominio,
+  type Dominio,
   type EstadoExcepcion,
   type Excepcion,
   type OrigenSolicitud,
   type Temporalidad,
   type TipoExcepcion,
 } from "@/types/excepcion";
+import { canSetEstadoManual } from "@/types/roles";
+import { AprobadorSelect } from "@/components/excepciones/aprobador-select";
 import {
   Select,
   SelectContent,
@@ -66,6 +75,7 @@ type PanelAccion =
   | null;
 
 type EditForm = {
+  dominio: Dominio;
   tipo_excepcion: TipoExcepcion;
   origen_solicitud: OrigenSolicitud;
   jira_ticket_id: string;
@@ -81,6 +91,7 @@ type EditForm = {
 
 function toEditForm(exc: Excepcion): EditForm {
   return {
+    dominio: exc.dominio,
     tipo_excepcion: exc.tipo_excepcion,
     origen_solicitud: exc.origen_solicitud,
     jira_ticket_id: exc.jira_ticket_id ?? "",
@@ -97,6 +108,7 @@ function toEditForm(exc: Excepcion): EditForm {
 
 export function ExcepcionDetail({ id }: { id: string }) {
   const router = useRouter();
+  const { can, user } = useAuth();
   const {
     getById,
     loading,
@@ -106,12 +118,17 @@ export function ExcepcionDetail({ id }: { id: string }) {
     cancelar,
     ampliar,
     reactivar,
+    comentar,
   } = useExcepciones();
 
   const excepcion = getById(id);
+  const puedeEstadoManual = user ? canSetEstadoManual(user.rol) : false;
+  const defaultActor = user?.email ?? ACTOR_OTS_ACTUAL;
   const [panel, setPanel] = useState<PanelAccion>(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
+  const [sujetos, setSujetos] = useState<Sujeto[]>([]);
+  const [editSujetos, setEditSujetos] = useState<SujetoInput[]>([]);
   const [motivo, setMotivo] = useState("");
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [busy, setBusy] = useState(false);
@@ -119,12 +136,38 @@ export function ExcepcionDetail({ id }: { id: string }) {
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [actorOpcion, setActorOpcion] = useState<string>(ACTOR_OTS_ACTUAL);
   const [actorOtro, setActorOtro] = useState("");
+  const [comentario, setComentario] = useState("");
+
+  useEffect(() => {
+    if (user?.email) setActorOpcion(user.email);
+  }, [user?.email]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listSujetosDeExcepcionAction(id)
+      .then((list) => {
+        if (!cancelled) setSujetos(list);
+      })
+      .catch(() => {
+        if (!cancelled) setSujetos([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, okMsg]);
 
   useEffect(() => {
     if (excepcion && editing) {
       setEditForm(toEditForm(excepcion));
+      setEditSujetos(
+        sujetos.map((s) => ({
+          tipo: s.tipo,
+          clave: s.clave,
+          display_name: s.display_name,
+        }))
+      );
     }
-  }, [excepcion, editing]);
+  }, [excepcion, editing, sujetos]);
 
   const dias = useMemo(
     () => (excepcion ? diasHastaRevision(excepcion.fecha_revision) : 0),
@@ -157,24 +200,8 @@ export function ExcepcionDetail({ id }: { id: string }) {
   }
 
   function initActorFromExcepcion() {
-    setActorOpcion(
-      excepcion?.aprobador_email &&
-        (APROBADORES_PREDEFINIDOS as readonly string[]).includes(
-          excepcion.aprobador_email
-        )
-        ? excepcion.aprobador_email
-        : excepcion?.aprobador_email
-          ? APROBADOR_OTRA_OPCION
-          : ACTOR_OTS_ACTUAL
-    );
-    setActorOtro(
-      excepcion?.aprobador_email &&
-        !(APROBADORES_PREDEFINIDOS as readonly string[]).includes(
-          excepcion.aprobador_email
-        )
-        ? excepcion.aprobador_email
-        : ""
-    );
+    setActorOpcion(defaultActor);
+    setActorOtro("");
   }
 
   function openPanel(next: PanelAccion) {
@@ -281,6 +308,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
             : null,
         actorEmail,
         motivo: editForm.motivo.trim() || undefined,
+        sujetos: editSujetos,
       });
       setOkMsg("Cambios guardados. Quedan registrados en auditoría.");
       setEditing(false);
@@ -294,15 +322,45 @@ export function ExcepcionDetail({ id }: { id: string }) {
     }
   }
 
-  const puedeAprobar = excepcion.estado === "Pendiente";
+  async function saveComment() {
+    if (!excepcion) return;
+    const texto = comentario.trim();
+    if (!texto) {
+      setError("Escribe un comentario.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setOkMsg(null);
+    try {
+      await comentar(excepcion.id, {
+        texto,
+        actorEmail: user?.email ?? defaultActor,
+      });
+      setComentario("");
+      setOkMsg("Comentario añadido al historial.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo guardar el comentario"
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const puedeAprobar =
+    excepcion.estado === "Pendiente" && can("approve", excepcion.dominio);
   const puedeCancelar =
-    excepcion.estado === "Aprobada" ||
-    excepcion.estado === "Pendiente" ||
-    excepcion.estado === "Caducada";
+    (excepcion.estado === "Aprobada" ||
+      excepcion.estado === "Pendiente" ||
+      excepcion.estado === "Caducada") &&
+    can("cancel", excepcion.dominio);
   const puedeAmpliar =
-    excepcion.estado === "Aprobada" || excepcion.estado === "Caducada";
+    (excepcion.estado === "Aprobada" || excepcion.estado === "Caducada") &&
+    can("extend", excepcion.dominio);
   const puedeReactivar =
-    excepcion.estado === "Cancelada" || excepcion.estado === "Rechazada";
+    (excepcion.estado === "Cancelada" || excepcion.estado === "Rechazada") &&
+    can("reactivate", excepcion.dominio);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -322,6 +380,9 @@ export function ExcepcionDetail({ id }: { id: string }) {
               {excepcion.id}
             </h2>
             <EstadoBadge estado={excepcion.estado} />
+            <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              {DOMINIO_LABELS[excepcion.dominio]}
+            </span>
           </div>
           <p className="text-sm text-muted-foreground">
             {excepcion.tipo_excepcion} · {excepcion.temporalidad} · revisión{" "}
@@ -399,6 +460,38 @@ export function ExcepcionDetail({ id }: { id: string }) {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
+              <Label>Dominio</Label>
+              <Select
+                value={editForm.dominio}
+                onValueChange={(v) => {
+                  const dominio = v as Dominio;
+                  const tipos = tiposDeDominio(dominio);
+                  setEditForm((f) =>
+                    f
+                      ? {
+                          ...f,
+                          dominio,
+                          tipo_excepcion: tipos.includes(f.tipo_excepcion)
+                            ? f.tipo_excepcion
+                            : tipos[0],
+                        }
+                      : f
+                  );
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DOMINIOS.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {DOMINIO_LABELS[d]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Tipo</Label>
               <Select
                 value={editForm.tipo_excepcion}
@@ -412,7 +505,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_EXCEPCION.map((t) => (
+                  {tiposDeDominio(editForm.dominio).map((t) => (
                     <SelectItem key={t} value={t}>
                       {t}
                     </SelectItem>
@@ -464,7 +557,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
               </div>
             ) : null}
             <div className="space-y-2">
-              <Label htmlFor="edit-solicitante">Solicitante</Label>
+              <Label htmlFor="edit-solicitante">Usuario afectado</Label>
               <Input
                 id="edit-solicitante"
                 value={editForm.solicitante_email}
@@ -474,9 +567,13 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   )
                 }
               />
+              <p className="text-xs text-muted-foreground">
+                Titular del equipo (correlación). Quien pidió la excepción →
+                comentario.
+              </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-activos">Activos afectados</Label>
+              <Label htmlFor="edit-activos">Equipo afectado</Label>
               <Input
                 id="edit-activos"
                 value={editForm.activo_afectado}
@@ -487,6 +584,11 @@ export function ExcepcionDetail({ id }: { id: string }) {
                 }
               />
             </div>
+
+            <div className="sm:col-span-2">
+              <SujetosPicker value={editSujetos} onChange={setEditSujetos} />
+            </div>
+
             <div className="space-y-2">
               <Label>Estado</Label>
               {editForm.estado === "Caducada" ? (
@@ -496,7 +598,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
                     Usa Ampliar para renovar o Cancelar para cerrar.
                   </p>
                 </>
-              ) : (
+              ) : puedeEstadoManual ? (
                 <Select
                   value={editForm.estado}
                   onValueChange={(v) =>
@@ -516,6 +618,14 @@ export function ExcepcionDetail({ id }: { id: string }) {
                     ))}
                   </SelectContent>
                 </Select>
+              ) : (
+                <>
+                  <Input value={editForm.estado} disabled />
+                  <p className="text-xs text-muted-foreground">
+                    Solo Seguridad puede cambiar el estado desde edición. Usa
+                    Aprobar/Rechazar si tienes permiso.
+                  </p>
+                </>
               )}
             </div>
             <div className="space-y-2">
@@ -579,34 +689,15 @@ export function ExcepcionDetail({ id }: { id: string }) {
                 }
               />
             </div>
-            <div className="space-y-2">
-              <Label>Actor (auditoría)</Label>
-              <Select value={actorOpcion} onValueChange={setActorOpcion}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {APROBADORES_PREDEFINIDOS.map((email) => (
-                    <SelectItem key={email} value={email}>
-                      {email}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={APROBADOR_OTRA_OPCION}>
-                    Otra opción
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {actorOpcion === APROBADOR_OTRA_OPCION ? (
-              <div className="space-y-2">
-                <Label htmlFor="edit-actor-otro">Correo o nombre</Label>
-                <Input
-                  id="edit-actor-otro"
-                  value={actorOtro}
-                  onChange={(e) => setActorOtro(e.target.value)}
-                />
-              </div>
-            ) : null}
+            <AprobadorSelect
+              dominio={excepcion.dominio}
+              label="Actor (auditoría)"
+              id="edit-actor"
+              value={actorOpcion}
+              otroValue={actorOtro}
+              onChange={setActorOpcion}
+              onOtroChange={setActorOtro}
+            />
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="edit-motivo">Motivo de la edición (opcional)</Label>
               <Textarea
@@ -661,35 +752,15 @@ export function ExcepcionDetail({ id }: { id: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="actor">Aprobador / actor</Label>
-              <Select value={actorOpcion} onValueChange={setActorOpcion}>
-                <SelectTrigger id="actor" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {APROBADORES_PREDEFINIDOS.map((email) => (
-                    <SelectItem key={email} value={email}>
-                      {email}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={APROBADOR_OTRA_OPCION}>
-                    Otra opción
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {actorOpcion === APROBADOR_OTRA_OPCION ? (
-              <div className="space-y-2">
-                <Label htmlFor="actor-otro">Correo o nombre</Label>
-                <Input
-                  id="actor-otro"
-                  value={actorOtro}
-                  onChange={(e) => setActorOtro(e.target.value)}
-                  placeholder="nombre@empresa.com o Nombre Apellido"
-                />
-              </div>
-            ) : null}
+            <AprobadorSelect
+              dominio={excepcion.dominio}
+              label="Aprobador / actor"
+              id="actor"
+              value={actorOpcion}
+              otroValue={actorOtro}
+              onChange={setActorOpcion}
+              onOtroChange={setActorOtro}
+            />
             {(panel === "ampliar" || panel === "reactivar") && (
               <div className="space-y-2">
                 <Label htmlFor="nueva-fecha">Nueva fecha de revisión</Label>
@@ -739,6 +810,10 @@ export function ExcepcionDetail({ id }: { id: string }) {
               <CardTitle className="text-base">Detalle de la excepción</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
+              <DetailField
+                label="Dominio"
+                value={DOMINIO_LABELS[excepcion.dominio]}
+              />
               <DetailField label="Tipo" value={excepcion.tipo_excepcion} />
               <DetailField label="Origen" value={excepcion.origen_solicitud} />
               {excepcion.origen_solicitud === "Jira" ? (
@@ -748,13 +823,38 @@ export function ExcepcionDetail({ id }: { id: string }) {
                 />
               ) : null}
               <DetailField
-                label="Solicitante"
+                label="Usuario afectado"
                 value={excepcion.solicitante_email}
               />
               <DetailField
-                label="Activos afectados"
+                label="Equipo afectado"
                 value={excepcion.activo_afectado}
               />
+              <div className="sm:col-span-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Vínculos
+                </p>
+                {sujetos.length === 0 ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Sin vínculos (se generan al editar o crear).
+                  </p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {sujetos.map((s) => (
+                      <Link
+                        key={s.id}
+                        href={`/sujetos/${s.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs hover:border-primary/40 hover:bg-primary/5"
+                      >
+                        <span className="text-muted-foreground">
+                          {TIPO_SUJETO_LABELS[s.tipo]}
+                        </span>
+                        <span className="font-medium">{s.display_name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
               <DetailField label="Temporalidad" value={excepcion.temporalidad} />
               <DetailField
                 label="Fecha solicitud"
@@ -823,6 +923,32 @@ export function ExcepcionDetail({ id }: { id: string }) {
           </Card>
         </div>
       ) : null}
+
+      <Card className="shadow-none">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Añadir comentario</CardTitle>
+          <CardDescription>
+            Queda registrado en el historial de auditoría (sin cambiar el
+            estado).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            rows={3}
+            value={comentario}
+            onChange={(e) => setComentario(e.target.value)}
+            placeholder="Nota operativa, seguimiento, contexto de baja…"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy || !comentario.trim()}
+            onClick={() => void saveComment()}
+          >
+            {busy ? "Guardando…" : "Publicar comentario"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <AuditTimeline historial={excepcion.historial} />
     </div>

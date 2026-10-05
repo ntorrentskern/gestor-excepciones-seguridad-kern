@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { NuevaExcepcionForm } from "@/components/excepciones/nueva-excepcion-form";
 
 export default function NuevaExcepcionPage() {
@@ -8,11 +9,18 @@ export default function NuevaExcepcionPage() {
           Alta de excepción
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Registra una nueva excepción de seguridad para seguimiento OTS.
+          Usuario afectado = titular del equipo. Si otro lo pide, usa «Solicitado
+          por».
         </p>
       </div>
 
-      <NuevaExcepcionForm />
+      <Suspense
+        fallback={
+          <p className="text-sm text-muted-foreground">Cargando formulario…</p>
+        }
+      >
+        <NuevaExcepcionForm />
+      </Suspense>
     </div>
   );
 }

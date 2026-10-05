@@ -27,8 +27,9 @@ import {
 } from "@/components/ui/chart";
 import { useExcepciones } from "@/context/excepciones-context";
 import {
+  DOMINIO_LABELS,
+  DOMINIOS,
   ESTADOS_EXCEPCION,
-  TIPOS_EXCEPCION,
   TIPOS_EXCEPCION_CORTO,
   type TipoExcepcion,
 } from "@/types/excepcion";
@@ -65,11 +66,21 @@ export function DashboardStats() {
   }, [excepciones]);
 
   const tipoData = useMemo(() => {
-    return TIPOS_EXCEPCION.map((tipo) => ({
-      tipo,
-      label: TIPOS_EXCEPCION_CORTO[tipo as TipoExcepcion],
-      total: excepciones.filter((e) => e.tipo_excepcion === tipo).length,
-    })).filter((d) => d.total > 0);
+    const counts = new Map<string, number>();
+    for (const e of excepciones) {
+      counts.set(e.tipo_excepcion, (counts.get(e.tipo_excepcion) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([tipo, total]) => ({
+        tipo,
+        label:
+          TIPOS_EXCEPCION_CORTO[tipo as TipoExcepcion] ??
+          tipo.slice(0, 12),
+        total,
+      }))
+      .filter((d) => d.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
   }, [excepciones]);
 
   const totalEstados = estadoData.reduce((acc, d) => acc + d.total, 0);
@@ -85,7 +96,7 @@ export function DashboardStats() {
     {
       title: "Pendientes",
       value: stats.pendientes,
-      description: "Requieren decisión OTS",
+      description: "Requieren decisión",
       icon: Clock3,
       accent:
         "text-amber-700 bg-amber-500/10 dark:text-amber-400 dark:bg-amber-500/15",
@@ -99,6 +110,11 @@ export function DashboardStats() {
         "text-orange-700 bg-orange-500/10 dark:text-orange-400 dark:bg-orange-500/15",
     },
   ];
+
+  const dominioKpis = DOMINIOS.map((d) => ({
+    title: DOMINIO_LABELS[d],
+    value: excepciones.filter((e) => e.dominio === d).length,
+  }));
 
   return (
     <div className="space-y-4">
@@ -128,6 +144,26 @@ export function DashboardStats() {
             </Card>
           );
         })}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {dominioKpis.map((item) => (
+          <Card key={item.title} className="shadow-none">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">
+                {item.title}
+              </CardDescription>
+              <CardTitle className="mt-1 text-2xl font-semibold tabular-nums">
+                {loading ? "—" : item.value}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Excepciones en este dominio
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

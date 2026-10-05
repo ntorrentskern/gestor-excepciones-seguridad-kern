@@ -2,6 +2,7 @@ import type { Excepcion } from "@/types/excepcion";
 
 const CSV_HEADERS = [
   "id",
+  "dominio",
   "tipo_excepcion",
   "origen_solicitud",
   "jira_ticket_id",

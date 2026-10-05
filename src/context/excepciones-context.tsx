@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import {
   excepcionesRepository,
   type AmpliarInput,
+  type ComentarInput,
   type DecisionInput,
   type ReactivarInput,
 } from "@/lib/excepciones/repository";
@@ -40,6 +41,7 @@ interface ExcepcionesContextValue {
   cancelar: (id: string, input?: DecisionInput) => Promise<Excepcion>;
   ampliar: (id: string, input: AmpliarInput) => Promise<Excepcion>;
   reactivar: (id: string, input: ReactivarInput) => Promise<Excepcion>;
+  comentar: (id: string, input: ComentarInput) => Promise<Excepcion>;
   filter: (filters: ExcepcionFilters) => Excepcion[];
   stats: {
     totalActivas: number;
@@ -137,6 +139,12 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
     return updated;
   }, []);
 
+  const comentar = useCallback(async (id: string, input: ComentarInput) => {
+    const updated = await excepcionesRepository.comentar(id, input);
+    setExcepciones((prev) => replaceInList(prev, updated));
+    return updated;
+  }, []);
+
   const filter = useCallback(
     (filters: ExcepcionFilters) => {
       const q = filters.busqueda?.trim().toLowerCase();
@@ -155,9 +163,17 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
         ) {
           return false;
         }
+        if (
+          filters.dominio &&
+          filters.dominio !== "Todos" &&
+          item.dominio !== filters.dominio
+        ) {
+          return false;
+        }
         if (q) {
           const blob = [
             item.id,
+            item.dominio,
             item.tipo_excepcion,
             item.origen_solicitud,
             item.jira_ticket_id ?? "",
@@ -207,6 +223,7 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
       cancelar,
       ampliar,
       reactivar,
+      comentar,
       filter,
       stats,
       proximasRevision,
@@ -224,6 +241,7 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
       cancelar,
       ampliar,
       reactivar,
+      comentar,
       filter,
       stats,
       proximasRevision,

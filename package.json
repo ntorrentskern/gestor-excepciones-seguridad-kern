@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate:fase1": "node --env-file=.env.local scripts/migrate-fase1.mjs",
+    "db:migrate:fase2": "node --env-file=.env.local scripts/migrate-fase2.mjs",
+    "db:migrate:fase3": "node --env-file=.env.local scripts/migrate-fase3.mjs",
+    "db:migrate:sujetos-tipos": "node --env-file=.env.local scripts/migrate-sujetos-tipos.mjs",
+    "db:migrate": "npm run db:migrate:fase1 && npm run db:migrate:fase2 && npm run db:migrate:fase3 && npm run db:migrate:sujetos-tipos",
+    "db:seed:usuarios": "node --env-file=.env.local scripts/seed-usuarios.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

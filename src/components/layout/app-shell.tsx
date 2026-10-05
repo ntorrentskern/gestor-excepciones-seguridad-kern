@@ -4,6 +4,10 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import {
+  CommandPalette,
+  CommandPaletteTrigger,
+} from "@/components/search/command-palette";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -22,10 +26,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-                Oficina Técnica de Seguridad
+                IT · Excepciones
               </p>
               <h1 className="mt-0.5 truncate text-lg font-semibold text-foreground">
-                Gestor de Excepciones de Seguridad
+                Gestor de Excepciones
               </h1>
             </div>
 
@@ -38,13 +42,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="h-9 w-auto object-contain invert mix-blend-multiply dark:invert-0 dark:mix-blend-screen"
             />
 
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-2">
+              <CommandPaletteTrigger />
               <ThemeToggle />
             </div>
           </div>
         </header>
         <main className="flex-1 p-6 md:p-8">{children}</main>
       </div>
+      <CommandPalette />
     </div>
   );
 }

@@ -6,6 +6,11 @@ import {
   parseISO,
 } from "date-fns";
 import type { Excepcion, Temporalidad } from "@/types/excepcion";
+import {
+  DOMINIO_PREFIX,
+  DOMINIO_PREFIX_ALIASES,
+  type Dominio,
+} from "@/types/dominio";
 
 /** Días restantes hasta fecha_revision (negativo si ya pasó). */
 export function diasHastaRevision(
@@ -90,13 +95,18 @@ export function fechaAmpliacionPorDefecto(fechaActual: string): string {
   return sumarDiasISO(fechaActual, 30);
 }
 
-export function generarSiguienteId(excepciones: { id: string }[]): string {
-  const prefix = "EXC-CIB-";
+export function generarSiguienteId(
+  excepciones: { id: string }[],
+  dominio: Dominio = "seguridad"
+): string {
+  const prefix = DOMINIO_PREFIX[dominio];
+  const aliases = DOMINIO_PREFIX_ALIASES[dominio];
   let max = 0;
 
   for (const exc of excepciones) {
-    if (!exc.id.startsWith(prefix)) continue;
-    const n = Number.parseInt(exc.id.slice(prefix.length), 10);
+    const matched = aliases.find((p) => exc.id.startsWith(p));
+    if (!matched) continue;
+    const n = Number.parseInt(exc.id.slice(matched.length), 10);
     if (!Number.isNaN(n) && n > max) max = n;
   }
 
