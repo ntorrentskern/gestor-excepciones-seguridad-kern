@@ -16,6 +16,7 @@ type SujetoRow = {
   clave: string;
   display_name: string;
   notas: string;
+  is_sandbox?: boolean;
   created_at?: string | Date;
   updated_at?: string | Date;
 };
@@ -31,6 +32,7 @@ function mapSujeto(row: SujetoRow): Sujeto {
     clave: row.clave,
     display_name: row.display_name || row.clave,
     notas: row.notas ?? "",
+    is_sandbox: Boolean(row.is_sandbox),
   };
 }
 
@@ -38,7 +40,7 @@ function newSujetoId(): string {
   return `suj-${randomBytes(5).toString("hex")}`;
 }
 
-/** Busca o crea un sujeto por tipo+clave. */
+/** Busca o crea un sujeto por tipo+clave (y modo sandbox si se indica). */
 export async function findOrCreateSujeto(input: SujetoInput): Promise<Sujeto> {
   const tipo = normalizeTipoSujeto(input.tipo);
   const clave = normalizeClave(input.clave);
@@ -46,11 +48,14 @@ export async function findOrCreateSujeto(input: SujetoInput): Promise<Sujeto> {
 
   const display = (input.display_name?.trim() || input.clave.trim()).slice(0, 200);
   const notas = input.notas?.trim() ?? "";
+  const isSandbox = Boolean(input.is_sandbox);
 
   const existing = (await sql`
-    SELECT id, tipo, clave, display_name, notas
+    SELECT id, tipo, clave, display_name, notas, is_sandbox
     FROM sujetos
-    WHERE tipo = ${tipo} AND lower(clave) = ${clave}
+    WHERE tipo = ${tipo}
+      AND lower(clave) = ${clave}
+      AND is_sandbox = ${isSandbox}
     LIMIT 1
   `) as SujetoRow[];
 
@@ -60,8 +65,8 @@ export async function findOrCreateSujeto(input: SujetoInput): Promise<Sujeto> {
 
   const id = newSujetoId();
   await sql`
-    INSERT INTO sujetos (id, tipo, clave, display_name, notas)
-    VALUES (${id}, ${tipo}, ${clave}, ${display}, ${notas})
+    INSERT INTO sujetos (id, tipo, clave, display_name, notas, is_sandbox)
+    VALUES (${id}, ${tipo}, ${clave}, ${display}, ${notas}, ${isSandbox})
   `;
 
   return {
@@ -70,6 +75,7 @@ export async function findOrCreateSujeto(input: SujetoInput): Promise<Sujeto> {
     clave,
     display_name: display,
     notas,
+    is_sandbox: isSandbox,
   };
 }
 
@@ -77,7 +83,7 @@ export async function listSujetosByExcepcion(
   excepcionId: string
 ): Promise<Sujeto[]> {
   const rows = (await sql`
-    SELECT s.id, s.tipo, s.clave, s.display_name, s.notas
+    SELECT s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox
     FROM sujetos s
     INNER JOIN excepcion_sujeto es ON es.sujeto_id = s.id
     WHERE es.excepcion_id = ${excepcionId}
@@ -115,7 +121,7 @@ export async function setSujetosForExcepcion(
 
 export async function getSujetoById(id: string): Promise<Sujeto | null> {
   const rows = (await sql`
-    SELECT id, tipo, clave, display_name, notas
+    SELECT id, tipo, clave, display_name, notas, is_sandbox
     FROM sujetos
     WHERE id = ${id}
     LIMIT 1
@@ -125,7 +131,8 @@ export async function getSujetoById(id: string): Promise<Sujeto | null> {
 
 export async function searchSujetos(
   query: string,
-  limit = 20
+  limit = 20,
+  isSandbox = false
 ): Promise<SujetoConStats[]> {
   const q = normalizeClave(query);
   if (!q) return [];
@@ -133,7 +140,7 @@ export async function searchSujetos(
   const pattern = `%${q}%`;
   const rows = (await sql`
     SELECT
-      s.id, s.tipo, s.clave, s.display_name, s.notas,
+      s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox,
       count(e.id)::int AS total_excepciones,
       count(*) FILTER (
         WHERE e.estado IN ('Pendiente', 'Aprobada')
@@ -141,11 +148,14 @@ export async function searchSujetos(
       count(*) FILTER (WHERE e.estado = 'Pendiente')::int AS pendientes
     FROM sujetos s
     LEFT JOIN excepcion_sujeto es ON es.sujeto_id = s.id
-    LEFT JOIN excepciones e ON e.id = es.excepcion_id
-    WHERE lower(s.clave) LIKE ${pattern}
-       OR lower(s.display_name) LIKE ${pattern}
-       OR lower(s.notas) LIKE ${pattern}
-    GROUP BY s.id, s.tipo, s.clave, s.display_name, s.notas
+    LEFT JOIN excepciones e ON e.id = es.excepcion_id AND e.is_sandbox = ${isSandbox}
+    WHERE s.is_sandbox = ${isSandbox}
+      AND (
+        lower(s.clave) LIKE ${pattern}
+        OR lower(s.display_name) LIKE ${pattern}
+        OR lower(s.notas) LIKE ${pattern}
+      )
+    GROUP BY s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox
     ORDER BY activas DESC, total_excepciones DESC, s.display_name ASC
     LIMIT ${limit}
   `) as Array<
@@ -239,7 +249,7 @@ export async function listSujetosRelacionados(
       SELECT excepcion_id FROM excepcion_sujeto WHERE sujeto_id = ${sujetoId}
     )
     SELECT
-      s.id, s.tipo, s.clave, s.display_name, s.notas,
+      s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox,
       count(DISTINCT es.excepcion_id)::int AS total_excepciones,
       count(DISTINCT es.excepcion_id) FILTER (
         WHERE e.estado IN ('Pendiente', 'Aprobada')
@@ -252,7 +262,7 @@ export async function listSujetosRelacionados(
     INNER JOIN sujetos s ON s.id = es.sujeto_id
     LEFT JOIN excepciones e ON e.id = es.excepcion_id
     WHERE es.sujeto_id <> ${sujetoId}
-    GROUP BY s.id, s.tipo, s.clave, s.display_name, s.notas
+    GROUP BY s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox
     ORDER BY total_excepciones DESC, s.display_name ASC
     LIMIT ${limit}
   `) as Array<
@@ -271,20 +281,26 @@ export async function listSujetosRelacionados(
   }));
 }
 
-export async function globalSearch(query: string): Promise<GlobalSearchResult> {
+export async function globalSearch(
+  query: string,
+  isSandbox = false
+): Promise<GlobalSearchResult> {
   const q = query.trim();
-  const sujetos = await searchSujetos(q, 15);
+  const sujetos = await searchSujetos(q, 15, isSandbox);
 
   const pattern = `%${normalizeClave(q)}%`;
   const excepciones = q
     ? ((await sql`
         SELECT id, dominio, tipo_excepcion, estado, solicitante_email, activo_afectado
         FROM excepciones
-        WHERE lower(id) LIKE ${pattern}
-           OR lower(solicitante_email) LIKE ${pattern}
-           OR lower(activo_afectado) LIKE ${pattern}
-           OR lower(justificacion) LIKE ${pattern}
-           OR lower(coalesce(jira_ticket_id, '')) LIKE ${pattern}
+        WHERE is_sandbox = ${isSandbox}
+          AND (
+            lower(id) LIKE ${pattern}
+            OR lower(solicitante_email) LIKE ${pattern}
+            OR lower(activo_afectado) LIKE ${pattern}
+            OR lower(justificacion) LIKE ${pattern}
+            OR lower(coalesce(jira_ticket_id, '')) LIKE ${pattern}
+          )
         ORDER BY
           CASE estado
             WHEN 'Pendiente' THEN 0
@@ -317,7 +333,7 @@ export async function attachSujetosToExcepciones(
   if (items.length === 0) return [];
   const ids = items.map((i) => i.id);
   const rows = (await sql`
-    SELECT es.excepcion_id, s.id, s.tipo, s.clave, s.display_name, s.notas
+    SELECT es.excepcion_id, s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox
     FROM excepcion_sujeto es
     INNER JOIN sujetos s ON s.id = es.sujeto_id
     WHERE es.excepcion_id = ANY(${ids})

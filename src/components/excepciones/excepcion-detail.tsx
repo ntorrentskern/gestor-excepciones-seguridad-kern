@@ -7,9 +7,15 @@ import {
   ArrowLeft,
   CalendarClock,
   CheckCircle2,
+  ClipboardList,
+  FileText,
+  Laptop,
+  MessageSquare,
   Pencil,
   RotateCcw,
+  Shield,
   ShieldX,
+  User,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { FormField, FormSection } from "@/components/ui/form-section";
 import { AuditTimeline } from "@/components/excepciones/audit-timeline";
 import { EstadoBadge } from "@/components/excepciones/estado-badge";
 import { useAuth } from "@/context/auth-context";
@@ -36,7 +42,6 @@ import {
   diasHastaRevision,
   fechaAmpliacionPorDefecto,
   formatearFecha,
-  formatearFechaHora,
   hoyISO,
   sumarDiasISO,
 } from "@/lib/excepciones/utils";
@@ -104,6 +109,17 @@ function toEditForm(exc: Excepcion): EditForm {
     fecha_revision: exc.fecha_revision,
     motivo: "",
   };
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{value}</p>
+    </div>
+  );
 }
 
 export function ExcepcionDetail({ id }: { id: string }) {
@@ -363,7 +379,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
     can("reactivate", excepcion.dominio);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <Button
@@ -375,7 +391,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
             <ArrowLeft className="size-4" />
             Volver
           </Button>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-mono text-2xl font-semibold tracking-tight text-foreground">
               {excepcion.id}
             </h2>
@@ -383,6 +399,11 @@ export function ExcepcionDetail({ id }: { id: string }) {
             <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
               {DOMINIO_LABELS[excepcion.dominio]}
             </span>
+            {excepcion.is_sandbox ? (
+              <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                DEMO
+              </span>
+            ) : null}
           </div>
           <p className="text-sm text-muted-foreground">
             {excepcion.tipo_excepcion} · {excepcion.temporalidad} · revisión{" "}
@@ -450,16 +471,14 @@ export function ExcepcionDetail({ id }: { id: string }) {
       ) : null}
 
       {editing && editForm ? (
-        <Card className="shadow-none ring-primary/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Editar excepción</CardTitle>
-            <CardDescription>
-              Corrige datos erróneos. Los cambios quedan en el historial de
-              auditoría.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+        <div className="space-y-5">
+          <FormSection
+            icon={Shield}
+            title="Clasificación"
+            description="Dominio, tipo y estado."
+            accent="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+          >
+            <FormField>
               <Label>Dominio</Label>
               <Select
                 value={editForm.dominio}
@@ -490,8 +509,8 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
+            </FormField>
+            <FormField>
               <Label>Tipo</Label>
               <Select
                 value={editForm.tipo_excepcion}
@@ -512,84 +531,8 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Origen</Label>
-              <Select
-                value={editForm.origen_solicitud}
-                onValueChange={(v) =>
-                  setEditForm((f) =>
-                    f
-                      ? {
-                          ...f,
-                          origen_solicitud: v as OrigenSolicitud,
-                          jira_ticket_id:
-                            v === "Jira" ? f.jira_ticket_id : "",
-                        }
-                      : f
-                  )
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORIGENES_SOLICITUD.map((o) => (
-                    <SelectItem key={o} value={o}>
-                      {o}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {editForm.origen_solicitud === "Jira" ? (
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="edit-jira">Ticket Jira</Label>
-                <Input
-                  id="edit-jira"
-                  value={editForm.jira_ticket_id}
-                  onChange={(e) =>
-                    setEditForm((f) =>
-                      f ? { ...f, jira_ticket_id: e.target.value } : f
-                    )
-                  }
-                />
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="edit-solicitante">Usuario afectado</Label>
-              <Input
-                id="edit-solicitante"
-                value={editForm.solicitante_email}
-                onChange={(e) =>
-                  setEditForm((f) =>
-                    f ? { ...f, solicitante_email: e.target.value } : f
-                  )
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Titular del equipo (correlación). Quien pidió la excepción →
-                comentario.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-activos">Equipo afectado</Label>
-              <Input
-                id="edit-activos"
-                value={editForm.activo_afectado}
-                onChange={(e) =>
-                  setEditForm((f) =>
-                    f ? { ...f, activo_afectado: e.target.value } : f
-                  )
-                }
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <SujetosPicker value={editSujetos} onChange={setEditSujetos} />
-            </div>
-
-            <div className="space-y-2">
+            </FormField>
+            <FormField>
               <Label>Estado</Label>
               {editForm.estado === "Caducada" ? (
                 <>
@@ -622,13 +565,12 @@ export function ExcepcionDetail({ id }: { id: string }) {
                 <>
                   <Input value={editForm.estado} disabled />
                   <p className="text-xs text-muted-foreground">
-                    Solo Seguridad puede cambiar el estado desde edición. Usa
-                    Aprobar/Rechazar si tienes permiso.
+                    Solo Seguridad puede cambiar el estado desde edición.
                   </p>
                 </>
               )}
-            </div>
-            <div className="space-y-2">
+            </FormField>
+            <FormField>
               <Label>Temporalidad</Label>
               <Select
                 value={editForm.temporalidad}
@@ -649,8 +591,107 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
+            </FormField>
+          </FormSection>
+
+          <FormSection
+            icon={User}
+            title="Usuario y equipo"
+            description="Titular y activos afectados."
+            accent="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+          >
+            <FormField>
+              <Label htmlFor="edit-solicitante">Usuario afectado</Label>
+              <Input
+                id="edit-solicitante"
+                value={editForm.solicitante_email}
+                onChange={(e) =>
+                  setEditForm((f) =>
+                    f ? { ...f, solicitante_email: e.target.value } : f
+                  )
+                }
+              />
+            </FormField>
+            <FormField>
+              <Label htmlFor="edit-activos">Equipo afectado</Label>
+              <Input
+                id="edit-activos"
+                value={editForm.activo_afectado}
+                onChange={(e) =>
+                  setEditForm((f) =>
+                    f ? { ...f, activo_afectado: e.target.value } : f
+                  )
+                }
+              />
+            </FormField>
+            <FormField className="sm:col-span-2">
+              <SujetosPicker value={editSujetos} onChange={setEditSujetos} />
+            </FormField>
+          </FormSection>
+
+          <FormSection
+            icon={ClipboardList}
+            title="Origen"
+            description="Canal de entrada de la solicitud."
+            accent="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          >
+            <FormField>
+              <Label>Origen</Label>
+              <Select
+                value={editForm.origen_solicitud}
+                onValueChange={(v) =>
+                  setEditForm((f) =>
+                    f
+                      ? {
+                          ...f,
+                          origen_solicitud: v as OrigenSolicitud,
+                          jira_ticket_id:
+                            v === "Jira" ? f.jira_ticket_id : "",
+                        }
+                      : f
+                  )
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORIGENES_SOLICITUD.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {editForm.origen_solicitud === "Jira" ? (
+              <FormField>
+                <Label htmlFor="edit-jira">Ticket Jira</Label>
+                <Input
+                  id="edit-jira"
+                  value={editForm.jira_ticket_id}
+                  onChange={(e) =>
+                    setEditForm((f) =>
+                      f ? { ...f, jira_ticket_id: e.target.value } : f
+                    )
+                  }
+                />
+              </FormField>
+            ) : (
+              <FormField>
+                <Label>Ticket Jira</Label>
+                <Input value="—" disabled />
+              </FormField>
+            )}
+          </FormSection>
+
+          <FormSection
+            icon={CalendarClock}
+            title="Vigencia"
+            description="Fecha de revisión y actor."
+            accent="bg-amber-500/10 text-amber-800 dark:text-amber-200"
+          >
+            <FormField>
               <Label htmlFor="edit-revision">Fecha revisión</Label>
               <Input
                 id="edit-revision"
@@ -662,8 +703,25 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   )
                 }
               />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
+            </FormField>
+            <AprobadorSelect
+              dominio={excepcion.dominio}
+              label="Actor (auditoría)"
+              id="edit-actor"
+              value={actorOpcion}
+              otroValue={actorOtro}
+              onChange={setActorOpcion}
+              onOtroChange={setActorOtro}
+            />
+          </FormSection>
+
+          <FormSection
+            icon={FileText}
+            title="Justificación"
+            description="Motivo y control compensatorio."
+            accent="bg-rose-500/10 text-rose-700 dark:text-rose-300"
+          >
+            <FormField className="sm:col-span-2">
               <Label htmlFor="edit-justificacion">Justificación</Label>
               <Textarea
                 id="edit-justificacion"
@@ -675,8 +733,8 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   )
                 }
               />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
+            </FormField>
+            <FormField className="sm:col-span-2">
               <Label htmlFor="edit-control">Control compensatorio</Label>
               <Textarea
                 id="edit-control"
@@ -688,17 +746,8 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   )
                 }
               />
-            </div>
-            <AprobadorSelect
-              dominio={excepcion.dominio}
-              label="Actor (auditoría)"
-              id="edit-actor"
-              value={actorOpcion}
-              otroValue={actorOtro}
-              onChange={setActorOpcion}
-              onOtroChange={setActorOtro}
-            />
-            <div className="space-y-2 sm:col-span-2">
+            </FormField>
+            <FormField className="sm:col-span-2">
               <Label htmlFor="edit-motivo">Motivo de la edición (opcional)</Label>
               <Textarea
                 id="edit-motivo"
@@ -711,30 +760,31 @@ export function ExcepcionDetail({ id }: { id: string }) {
                 }
                 placeholder="Ej. Corrección de tipografía en activos…"
               />
-            </div>
-            {error ? (
-              <p className="sm:col-span-2 text-sm text-rose-700" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <div className="flex gap-2 sm:col-span-2">
-              <Button onClick={() => void saveEdit()} disabled={busy}>
-                {busy ? "Guardando…" : "Guardar cambios"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditing(false);
-                  setEditForm(null);
-                  setError(null);
-                }}
-                disabled={busy}
-              >
-                Cancelar edición
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </FormField>
+          </FormSection>
+
+          {error ? (
+            <p className="text-sm text-rose-700" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex gap-2">
+            <Button onClick={() => void saveEdit()} disabled={busy}>
+              {busy ? "Guardando…" : "Guardar cambios"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditing(false);
+                setEditForm(null);
+                setError(null);
+              }}
+              disabled={busy}
+            >
+              Cancelar edición
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {panel ? (
@@ -748,7 +798,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
               {panel === "reactivar" && "Reactivar excepción"}
             </CardTitle>
             <CardDescription>
-              La acción quedará en el historial de auditoría en Neon.
+              La acción quedará en el historial de auditoría.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -804,70 +854,121 @@ export function ExcepcionDetail({ id }: { id: string }) {
       ) : null}
 
       {!editing ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="shadow-none lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base">Detalle de la excepción</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
+        <>
+          <FormSection
+            icon={Shield}
+            title="Clasificación"
+            description="Dominio, tipo y estado."
+            accent="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+          >
+            <FormField>
               <DetailField
                 label="Dominio"
                 value={DOMINIO_LABELS[excepcion.dominio]}
               />
+            </FormField>
+            <FormField>
               <DetailField label="Tipo" value={excepcion.tipo_excepcion} />
-              <DetailField label="Origen" value={excepcion.origen_solicitud} />
-              {excepcion.origen_solicitud === "Jira" ? (
-                <DetailField
-                  label="Ticket Jira"
-                  value={excepcion.jira_ticket_id ?? "—"}
-                />
-              ) : null}
+            </FormField>
+            <FormField>
+              <DetailField label="Estado" value={excepcion.estado} />
+            </FormField>
+            <FormField>
+              <DetailField label="Temporalidad" value={excepcion.temporalidad} />
+            </FormField>
+          </FormSection>
+
+          <FormSection
+            icon={Laptop}
+            title="Usuario y equipo"
+            description="Vínculos CMDB / correlación."
+            accent="bg-violet-500/10 text-violet-700 dark:text-violet-300"
+          >
+            <FormField>
               <DetailField
                 label="Usuario afectado"
                 value={excepcion.solicitante_email}
               />
+            </FormField>
+            <FormField>
               <DetailField
                 label="Equipo afectado"
                 value={excepcion.activo_afectado}
               />
-              <div className="sm:col-span-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Vínculos
+            </FormField>
+            <FormField className="sm:col-span-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Vínculos
+              </p>
+              {sujetos.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Sin vínculos (se generan al editar o crear).
                 </p>
-                {sujetos.length === 0 ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Sin vínculos (se generan al editar o crear).
-                  </p>
-                ) : (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {sujetos.map((s) => (
-                      <Link
-                        key={s.id}
-                        href={`/sujetos/${s.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs hover:border-primary/40 hover:bg-primary/5"
-                      >
-                        <span className="text-muted-foreground">
-                          {TIPO_SUJETO_LABELS[s.tipo]}
-                        </span>
-                        <span className="font-medium">{s.display_name}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <DetailField label="Temporalidad" value={excepcion.temporalidad} />
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {sujetos.map((s) => (
+                    <Link
+                      key={s.id}
+                      href={`/sujetos/${s.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs hover:border-primary/40 hover:bg-primary/5"
+                    >
+                      <span className="text-muted-foreground">
+                        {TIPO_SUJETO_LABELS[s.tipo]}
+                      </span>
+                      <span className="font-medium">{s.display_name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </FormField>
+          </FormSection>
+
+          <FormSection
+            icon={ClipboardList}
+            title="Origen"
+            description="Canal de entrada."
+            accent="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          >
+            <FormField>
+              <DetailField label="Origen" value={excepcion.origen_solicitud} />
+            </FormField>
+            <FormField>
+              <DetailField
+                label="Ticket Jira"
+                value={
+                  excepcion.origen_solicitud === "Jira"
+                    ? (excepcion.jira_ticket_id ?? "—")
+                    : "—"
+                }
+              />
+            </FormField>
+          </FormSection>
+
+          <FormSection
+            icon={CalendarClock}
+            title="Vigencia"
+            description="Fechas y decisión."
+            accent="bg-amber-500/10 text-amber-800 dark:text-amber-200"
+          >
+            <FormField>
               <DetailField
                 label="Fecha solicitud"
                 value={formatearFecha(excepcion.fecha_solicitud)}
               />
+            </FormField>
+            <FormField>
               <DetailField
                 label="Fecha revisión"
                 value={formatearFecha(excepcion.fecha_revision)}
               />
+            </FormField>
+            <FormField>
               <DetailField
                 label="Registrador / aprobador"
                 value={excepcion.aprobador_email ?? "—"}
               />
+            </FormField>
+            <FormField>
               <DetailField
                 label="Fecha decisión"
                 value={
@@ -876,92 +977,61 @@ export function ExcepcionDetail({ id }: { id: string }) {
                     : "—"
                 }
               />
-              <div className="sm:col-span-2">
-                <DetailField
-                  label="Justificación"
-                  value={excepcion.justificacion}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <DetailField
-                  label="Control compensatorio"
-                  value={
-                    excepcion.control_compensatorio?.trim()
-                      ? excepcion.control_compensatorio
-                      : "No indicado"
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
+            </FormField>
+          </FormSection>
 
-          <Card className="shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">Resumen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Estado</span>
-                <EstadoBadge estado={excepcion.estado} />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Eventos auditoría</span>
-                <span className="font-semibold tabular-nums">
-                  {excepcion.historial.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Último cambio</span>
-                <span className="text-right text-xs">
-                  {excepcion.historial[0]
-                    ? formatearFechaHora(excepcion.historial[0].timestamp)
-                    : "—"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <FormSection
+            icon={FileText}
+            title="Justificación"
+            description="Motivo y control compensatorio."
+            accent="bg-rose-500/10 text-rose-700 dark:text-rose-300"
+          >
+            <FormField className="sm:col-span-2">
+              <DetailField
+                label="Justificación"
+                value={excepcion.justificacion}
+              />
+            </FormField>
+            <FormField className="sm:col-span-2">
+              <DetailField
+                label="Control compensatorio"
+                value={
+                  excepcion.control_compensatorio?.trim()
+                    ? excepcion.control_compensatorio
+                    : "No indicado"
+                }
+              />
+            </FormField>
+          </FormSection>
+
+          <FormSection
+            icon={MessageSquare}
+            title="Comentario"
+            description="Nota operativa sin cambiar el estado."
+            accent="bg-slate-500/10 text-slate-700 dark:text-slate-300"
+          >
+            <FormField className="sm:col-span-2">
+              <Textarea
+                rows={3}
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+                placeholder="Nota operativa, seguimiento, contexto de baja…"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-2"
+                disabled={busy || !comentario.trim()}
+                onClick={() => void saveComment()}
+              >
+                {busy ? "Guardando…" : "Publicar comentario"}
+              </Button>
+            </FormField>
+          </FormSection>
+        </>
       ) : null}
 
-      <Card className="shadow-none">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Añadir comentario</CardTitle>
-          <CardDescription>
-            Queda registrado en el historial de auditoría (sin cambiar el
-            estado).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            rows={3}
-            value={comentario}
-            onChange={(e) => setComentario(e.target.value)}
-            placeholder="Nota operativa, seguimiento, contexto de baja…"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || !comentario.trim()}
-            onClick={() => void saveComment()}
-          >
-            {busy ? "Guardando…" : "Publicar comentario"}
-          </Button>
-        </CardContent>
-      </Card>
-
       <AuditTimeline historial={excepcion.historial} />
-    </div>
-  );
-}
-
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{value}</p>
     </div>
   );
 }

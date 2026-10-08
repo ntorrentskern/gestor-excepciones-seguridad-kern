@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS excepciones (
   fecha_revision DATE NOT NULL,
   aprobador_email TEXT,
   fecha_decision DATE,
+  is_sandbox BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT jira_ticket_cuando_origen_jira CHECK (
@@ -51,6 +52,9 @@ CREATE INDEX IF NOT EXISTS idx_excepciones_tipo
 CREATE INDEX IF NOT EXISTS idx_excepciones_dominio
   ON excepciones (dominio);
 
+CREATE INDEX IF NOT EXISTS idx_excepciones_sandbox
+  ON excepciones (is_sandbox);
+
 CREATE INDEX IF NOT EXISTS idx_eventos_excepcion_id
   ON eventos_auditoria (excepcion_id);
 
@@ -65,6 +69,7 @@ CREATE TABLE IF NOT EXISTS sujetos (
   clave TEXT NOT NULL,
   display_name TEXT NOT NULL DEFAULT '',
   notas TEXT NOT NULL DEFAULT '',
+  is_sandbox BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -77,6 +82,9 @@ CREATE INDEX IF NOT EXISTS idx_sujetos_clave_lower
 
 CREATE INDEX IF NOT EXISTS idx_sujetos_display_lower
   ON sujetos (lower(display_name));
+
+CREATE INDEX IF NOT EXISTS idx_sujetos_sandbox
+  ON sujetos (is_sandbox);
 
 CREATE TABLE IF NOT EXISTS excepcion_sujeto (
   excepcion_id TEXT NOT NULL REFERENCES excepciones (id) ON DELETE CASCADE,

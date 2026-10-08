@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/context/auth-context";
 import { useExcepciones } from "@/context/excepciones-context";
+import { useSandbox } from "@/context/sandbox-context";
 import { fechaRevisionPorDefecto } from "@/lib/excepciones/utils";
 import {
   APROBADOR_OTRA_OPCION,
@@ -129,6 +130,7 @@ export function NuevaExcepcionForm() {
   const searchParams = useSearchParams();
   const { create } = useExcepciones();
   const { user } = useAuth();
+  const { enabled: sandboxEnabled } = useSandbox();
   const puedeEstado = user ? canSetEstadoManual(user.rol) : false;
 
   const dominioInicial = useMemo(() => {
@@ -274,6 +276,7 @@ export function NuevaExcepcionForm() {
         aprobador_email: aprobador,
         solicitado_por: form.solicitado_por.trim() || undefined,
         sujetos: sujetosMerged.length > 0 ? sujetosMerged : undefined,
+        is_sandbox: sandboxEnabled || undefined,
       });
       router.push(`/excepciones/${created.id}`);
     } catch (err) {

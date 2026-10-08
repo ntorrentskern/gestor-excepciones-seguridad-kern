@@ -6,6 +6,7 @@ import {
   generarSiguienteId,
   hoyISO,
 } from "@/lib/excepciones/utils";
+import { SANDBOX_DOMINIO_PREFIX } from "@/lib/sandbox/config";
 import type {
   Dominio,
   EditarExcepcionInput,
@@ -47,6 +48,7 @@ type ExcepcionRow = {
   fecha_revision: string | Date;
   aprobador_email: string | null;
   fecha_decision: string | Date | null;
+  is_sandbox?: boolean;
 };
 
 type EventoRow = {
@@ -116,6 +118,7 @@ function mapExcepcion(row: ExcepcionRow, historial: EventoAuditoria[]): Excepcio
     aprobador_email: row.aprobador_email,
     fecha_decision: toDateString(row.fecha_decision),
     historial,
+    is_sandbox: Boolean(row.is_sandbox),
   };
 }
 
@@ -178,6 +181,12 @@ function applyFilters(
       filters.dominio &&
       filters.dominio !== "Todos" &&
       item.dominio !== filters.dominio
+    ) {
+      return false;
+    }
+    if (
+      typeof filters.is_sandbox === "boolean" &&
+      Boolean(item.is_sandbox) !== filters.is_sandbox
     ) {
       return false;
     }
@@ -371,8 +380,17 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
       );
     }
 
+    const isSandbox = Boolean(input.is_sandbox);
     const existing = (await sql`SELECT id FROM excepciones`) as { id: string }[];
-    const id = generarSiguienteId(existing, input.dominio);
+    const sandboxPrefix = isSandbox
+      ? SANDBOX_DOMINIO_PREFIX[input.dominio]
+      : undefined;
+    const id = generarSiguienteId(
+      existing,
+      input.dominio,
+      sandboxPrefix,
+      sandboxPrefix ? [sandboxPrefix] : undefined
+    );
 
     const estado = input.estado ?? "Pendiente";
     const solicitante = input.solicitante_email.trim();
@@ -391,7 +409,8 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
         id, dominio, tipo_excepcion, origen_solicitud, jira_ticket_id,
         solicitante_email, activo_afectado, justificacion,
         control_compensatorio, estado, temporalidad,
-        fecha_solicitud, fecha_revision, aprobador_email, fecha_decision
+        fecha_solicitud, fecha_revision, aprobador_email, fecha_decision,
+        is_sandbox
       ) VALUES (
         ${id},
         ${input.dominio},
@@ -407,7 +426,8 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
         ${fechaSolicitud},
         ${input.fecha_revision},
         ${registrador},
-        ${null}
+        ${null},
+        ${isSandbox}
       )
     `;
 
@@ -438,14 +458,13 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
       );
     }
 
-    await setSujetosForExcepcion(
-      id,
-      buildDefaultSujetos({
-        solicitante_email: solicitante,
-        activo_afectado: input.activo_afectado,
-        sujetos: input.sujetos,
-      })
-    );
+    const sujetosInput = buildDefaultSujetos({
+      solicitante_email: solicitante,
+      activo_afectado: input.activo_afectado,
+      sujetos: input.sujetos,
+    }).map((s) => ({ ...s, is_sandbox: isSandbox }));
+
+    await setSujetosForExcepcion(id, sujetosInput);
 
     const created = await getByIdInternal(id);
     if (!created) {
@@ -593,7 +612,11 @@ export const neonExcepcionesRepository: ExcepcionesRepository = {
     }
 
     if (input.sujetos !== undefined) {
-      await setSujetosForExcepcion(id, input.sujetos);
+      const sujetosConModo = input.sujetos.map((s) => ({
+        ...s,
+        is_sandbox: Boolean(current.is_sandbox),
+      }));
+      await setSujetosForExcepcion(id, sujetosConModo);
       if (cambios.length === 0) {
         await insertEvento(
           id,

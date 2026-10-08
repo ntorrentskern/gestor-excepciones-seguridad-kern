@@ -40,6 +40,8 @@ export type Sujeto = {
   clave: string;
   display_name: string;
   notas: string;
+  /** true = dato del entorno de demostración (aislado). */
+  is_sandbox?: boolean;
   created_at?: string;
   updated_at?: string;
 };
@@ -51,6 +53,8 @@ export type SujetoInput = {
   notas?: string;
   /** Generado desde Usuario/Equipo afectados (no se elimina a mano). */
   auto?: boolean;
+  /** true = crear / buscar en entorno de demostración. */
+  is_sandbox?: boolean;
 };
 
 export type SujetoConStats = Sujeto & {

@@ -97,10 +97,13 @@ export function fechaAmpliacionPorDefecto(fechaActual: string): string {
 
 export function generarSiguienteId(
   excepciones: { id: string }[],
-  dominio: Dominio = "seguridad"
+  dominio: Dominio = "seguridad",
+  /** Prefijos opcionales (p. ej. DEMO-SEG-). Si se pasan, solo se cuentan esos. */
+  prefixOverride?: string,
+  aliasesOverride?: string[]
 ): string {
-  const prefix = DOMINIO_PREFIX[dominio];
-  const aliases = DOMINIO_PREFIX_ALIASES[dominio];
+  const prefix = prefixOverride ?? DOMINIO_PREFIX[dominio];
+  const aliases = aliasesOverride ?? DOMINIO_PREFIX_ALIASES[dominio];
   let max = 0;
 
   for (const exc of excepciones) {

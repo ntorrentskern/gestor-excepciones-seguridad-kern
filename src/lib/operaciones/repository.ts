@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { sql } from "@/lib/db";
-import { listExcepcionesBySujeto } from "@/lib/sujetos/repository";
+import { generarIdEvento } from "@/lib/excepciones/utils";
+import { listExcepcionesBySujeto, setSujetosForExcepcion } from "@/lib/sujetos/repository";
 import type {
   EventoOperativo,
   EventoOperativoDetalle,
@@ -107,7 +108,8 @@ export async function getEventoOperativo(
 
   const links = (await sql`
     SELECT eoe.excepcion_id, eoe.revisada,
-           e.tipo_excepcion, e.dominio, e.estado
+           e.tipo_excepcion, e.dominio, e.estado,
+           e.solicitante_email, e.activo_afectado
     FROM evento_operativo_excepcion eoe
     INNER JOIN excepciones e ON e.id = eoe.excepcion_id
     WHERE eoe.evento_id = ${id}
@@ -118,6 +120,8 @@ export async function getEventoOperativo(
     tipo_excepcion: string;
     dominio: string;
     estado: string;
+    solicitante_email: string;
+    activo_afectado: string;
   }>;
 
   return {
@@ -128,6 +132,8 @@ export async function getEventoOperativo(
       dominio: l.dominio,
       estado: l.estado,
       revisada: Boolean(l.revisada),
+      solicitante_email: l.solicitante_email,
+      activo_afectado: l.activo_afectado,
     })),
   };
 }
@@ -159,9 +165,12 @@ export async function listEventosOperativosBySujeto(
 export async function listEventosOperativos(filters?: {
   estado?: "Abierto" | "Cerrado" | "Todos";
   limit?: number;
+  /** true = solo demo; false = solo reales. */
+  is_sandbox?: boolean;
 }): Promise<EventoOperativoListItem[]> {
   const estado = filters?.estado ?? "Todos";
   const limit = filters?.limit ?? 100;
+  const isSandbox = Boolean(filters?.is_sandbox);
 
   const rows = (await sql`
     SELECT
@@ -175,7 +184,9 @@ export async function listEventosOperativos(filters?: {
     FROM eventos_operativos eo
     INNER JOIN sujetos s ON s.id = eo.sujeto_id
     LEFT JOIN evento_operativo_excepcion eoe ON eoe.evento_id = eo.id
+    LEFT JOIN excepciones e ON e.id = eoe.excepcion_id AND e.is_sandbox = ${isSandbox}
     WHERE (${estado} = 'Todos' OR eo.estado = ${estado})
+      AND s.is_sandbox = ${isSandbox}
     GROUP BY
       eo.id, eo.tipo, eo.sujeto_id, eo.actor_email, eo.notas, eo.estado,
       eo.created_at, eo.closed_at, s.display_name, s.tipo, s.clave
@@ -219,6 +230,146 @@ export async function marcarExcepcionRevisada(
       revisada = ${revisada}
     WHERE evento_id = ${eventoId} AND excepcion_id = ${excepcionId}
   `;
+}
+
+/**
+ * Reasigna usuario y/o PC de una excepción desde un evento operativo.
+ * No marca como revisada: eso sigue siendo manual.
+ */
+export async function reasignarExcepcionEnOperacion(input: {
+  eventoId: string;
+  excepcionId: string;
+  actorEmail: string;
+  nuevoUsuario?: string;
+  nuevoActivo?: string;
+}): Promise<EventoOperativoDetalle> {
+  const evento = await getEventoOperativo(input.eventoId);
+  if (!evento) throw new Error("Evento no encontrado");
+  if (evento.estado !== "Abierto") {
+    throw new Error("El evento ya está cerrado.");
+  }
+
+  const linked = evento.excepciones.some((e) => e.id === input.excepcionId);
+  if (!linked) {
+    throw new Error("La excepción no pertenece a este evento.");
+  }
+
+  const nuevoUsuario = input.nuevoUsuario?.trim() ?? "";
+  const nuevoActivo = input.nuevoActivo?.trim() ?? "";
+  if (!nuevoUsuario && !nuevoActivo) {
+    throw new Error("Indica un nuevo usuario y/o un nuevo PC.");
+  }
+
+  const rows = (await sql`
+    SELECT id, solicitante_email, activo_afectado, is_sandbox
+    FROM excepciones
+    WHERE id = ${input.excepcionId}
+    LIMIT 1
+  `) as Array<{
+    id: string;
+    solicitante_email: string;
+    activo_afectado: string;
+    is_sandbox: boolean;
+  }>;
+  const current = rows[0];
+  if (!current) throw new Error("Excepción no encontrada");
+
+  const nextUsuario = nuevoUsuario || current.solicitante_email;
+  const nextActivo = nuevoActivo || current.activo_afectado;
+
+  await sql`
+    UPDATE excepciones SET
+      solicitante_email = ${nextUsuario},
+      activo_afectado = ${nextActivo},
+      updated_at = NOW()
+    WHERE id = ${input.excepcionId}
+  `;
+
+  const sujetos: Array<{
+    tipo: "usuario" | "activo";
+    clave: string;
+    display_name: string;
+    is_sandbox?: boolean;
+  }> = [];
+  if (nextUsuario.trim()) {
+    sujetos.push({
+      tipo: "usuario",
+      clave: nextUsuario,
+      display_name: nextUsuario,
+      is_sandbox: Boolean(current.is_sandbox),
+    });
+  }
+  if (nextActivo.trim()) {
+    sujetos.push({
+      tipo: "activo",
+      clave: nextActivo,
+      display_name: nextActivo,
+      is_sandbox: Boolean(current.is_sandbox),
+    });
+  }
+  await setSujetosForExcepcion(input.excepcionId, sujetos);
+
+  const partes: string[] = [];
+  if (nuevoUsuario && nuevoUsuario !== current.solicitante_email) {
+    partes.push(
+      `usuario «${current.solicitante_email}» → «${nuevoUsuario}»`
+    );
+  }
+  if (nuevoActivo && nuevoActivo !== current.activo_afectado) {
+    partes.push(`equipo «${current.activo_afectado}» → «${nuevoActivo}»`);
+  }
+
+  const detalle = `Reasignación en operación ${input.eventoId}: ${partes.join("; ") || "sin cambios efectivos"}.`;
+
+  const histCount = (
+    (await sql`
+      SELECT count(*)::int AS n FROM eventos_auditoria
+      WHERE excepcion_id = ${input.excepcionId}
+    `) as Array<{ n: number }>
+  )[0]?.n ?? 0;
+
+  const audId = generarIdEvento(input.excepcionId, histCount);
+  await sql`
+    INSERT INTO eventos_auditoria (
+      id, excepcion_id, tipo, actor_email, detalle, estado_anterior, estado_nuevo
+    ) VALUES (
+      ${audId},
+      ${input.excepcionId},
+      ${"Comentario"},
+      ${input.actorEmail},
+      ${detalle},
+      ${null},
+      ${null}
+    )
+  `;
+
+  return (await getEventoOperativo(input.eventoId))!;
+}
+
+/** Aplica la misma reasignación a todas las excepciones del evento (no marca revisadas). */
+export async function reasignarTodasEnOperacion(input: {
+  eventoId: string;
+  actorEmail: string;
+  nuevoUsuario?: string;
+  nuevoActivo?: string;
+}): Promise<EventoOperativoDetalle> {
+  const evento = await getEventoOperativo(input.eventoId);
+  if (!evento) throw new Error("Evento no encontrado");
+  if (evento.estado !== "Abierto") {
+    throw new Error("El evento ya está cerrado.");
+  }
+
+  for (const exc of evento.excepciones) {
+    await reasignarExcepcionEnOperacion({
+      eventoId: input.eventoId,
+      excepcionId: exc.id,
+      actorEmail: input.actorEmail,
+      nuevoUsuario: input.nuevoUsuario,
+      nuevoActivo: input.nuevoActivo,
+    });
+  }
+
+  return (await getEventoOperativo(input.eventoId))!;
 }
 
 export async function cerrarEventoOperativo(

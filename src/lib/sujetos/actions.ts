@@ -1,6 +1,7 @@
 "use server";
 
 import { requireCurrentUser } from "@/lib/auth/session-user";
+import { resolveSandboxFilter } from "@/lib/sandbox/actions";
 import {
   getSujetoById,
   globalSearch,
@@ -16,14 +17,16 @@ export async function searchGlobalAction(
   query: string
 ): Promise<GlobalSearchResult> {
   await requireCurrentUser();
-  return globalSearch(query);
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+  return globalSearch(query, sandboxMode);
 }
 
 export async function searchSujetosAction(
   query: string
 ): Promise<SujetoConStats[]> {
   await requireCurrentUser();
-  return searchSujetos(query);
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+  return searchSujetos(query, 20, sandboxMode);
 }
 
 export async function getSujetoFichaAction(id: string): Promise<{

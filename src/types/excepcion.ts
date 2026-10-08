@@ -95,6 +95,8 @@ export interface Excepcion {
   fecha_decision: string | null;
   control_compensatorio?: string;
   historial: EventoAuditoria[];
+  /** true = dato del entorno de demostración (aislado). */
+  is_sandbox?: boolean;
 }
 
 export type NuevaExcepcionInput = {
@@ -119,6 +121,8 @@ export type NuevaExcepcionInput = {
   solicitado_por?: string;
   /** Sujetos a vincular (usuario, PC, etc.). */
   sujetos?: import("@/types/sujeto").SujetoInput[];
+  /** true = crear en entorno de demostración. */
+  is_sandbox?: boolean;
 };
 
 export type EditarExcepcionInput = {
@@ -143,6 +147,8 @@ export interface ExcepcionFilters {
   tipo_excepcion?: TipoExcepcion | "Todos";
   dominio?: Dominio | "Todos";
   busqueda?: string;
+  /** true = solo demo; false = solo reales. */
+  is_sandbox?: boolean;
 }
 
 /** Por defecto en formularios hasta que el usuario elija otro. */

@@ -11,8 +11,10 @@
     "db:migrate:fase2": "node --env-file=.env.local scripts/migrate-fase2.mjs",
     "db:migrate:fase3": "node --env-file=.env.local scripts/migrate-fase3.mjs",
     "db:migrate:sujetos-tipos": "node --env-file=.env.local scripts/migrate-sujetos-tipos.mjs",
-    "db:migrate": "npm run db:migrate:fase1 && npm run db:migrate:fase2 && npm run db:migrate:fase3 && npm run db:migrate:sujetos-tipos",
-    "db:seed:usuarios": "node --env-file=.env.local scripts/seed-usuarios.mjs"
+    "db:migrate:sandbox": "node --env-file=.env.local scripts/migrate-sandbox.mjs",
+    "db:migrate": "npm run db:migrate:fase1 && npm run db:migrate:fase2 && npm run db:migrate:fase3 && npm run db:migrate:sujetos-tipos && npm run db:migrate:sandbox",
+    "db:seed:usuarios": "node --env-file=.env.local scripts/seed-usuarios.mjs",
+    "db:seed:sandbox": "node --env-file=.env.local scripts/seed-sandbox.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

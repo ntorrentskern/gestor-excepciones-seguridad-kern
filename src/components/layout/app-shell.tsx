@@ -8,9 +8,11 @@ import {
   CommandPalette,
   CommandPaletteTrigger,
 } from "@/components/search/command-palette";
+import { useSandbox } from "@/context/sandbox-context";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { enabled: sandboxEnabled } = useSandbox();
 
   if (pathname === "/login") {
     return <>{children}</>;
@@ -22,6 +24,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Sidebar />
       </aside>
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        {sandboxEnabled ? (
+          <div
+            role="status"
+            className="border-b border-amber-500/40 bg-amber-100 px-6 py-2 text-center text-sm font-medium text-amber-950 dark:bg-amber-950/60 dark:text-amber-100"
+          >
+            Entorno de demostración — datos aislados
+          </div>
+        ) : null}
         <header className="sticky top-0 z-10 border-b border-border bg-card/95 px-6 py-3 backdrop-blur-md">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <div className="min-w-0">

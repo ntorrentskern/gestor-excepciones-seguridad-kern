@@ -4,12 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRightLeft,
   CheckCircle2,
   ClipboardList,
   Laptop,
+  User,
   UserMinus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -23,6 +27,8 @@ import {
   crearEventoOperativoAction,
   getEventoOperativoAction,
   marcarRevisadaAction,
+  reasignarExcepcionOperacionAction,
+  reasignarTodasOperacionAction,
 } from "@/lib/operaciones/actions";
 import {
   TIPO_EVENTO_OPERATIVO_LABELS,
@@ -70,7 +76,7 @@ export function EventoOperativoPanel({
         <CardTitle className="text-base">Evento operativo</CardTitle>
         <CardDescription>
           Genera un checklist con las excepciones activas para una baja o un
-          cambio de dispositivo.
+          cambio de dispositivo. En el detalle podrás reasignar usuario/PC.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -128,10 +134,26 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [bulkUsuario, setBulkUsuario] = useState("");
+  const [bulkActivo, setBulkActivo] = useState("");
+  const [rowDrafts, setRowDrafts] = useState<
+    Record<string, { usuario: string; activo: string }>
+  >({});
 
   async function refresh() {
     const next = await getEventoOperativoAction(id);
     setData(next);
+    if (next) {
+      setRowDrafts((prev) => {
+        const nextDrafts = { ...prev };
+        for (const e of next.excepciones) {
+          if (!nextDrafts[e.id]) {
+            nextDrafts[e.id] = { usuario: "", activo: "" };
+          }
+        }
+        return nextDrafts;
+      });
+    }
   }
 
   useEffect(() => {
@@ -139,7 +161,17 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
     setLoading(true);
     void getEventoOperativoAction(id)
       .then((d) => {
-        if (!cancelled) setData(d);
+        if (!cancelled) {
+          setData(d);
+          if (d) {
+            const drafts: Record<string, { usuario: string; activo: string }> =
+              {};
+            for (const e of d.excepciones) {
+              drafts[e.id] = { usuario: "", activo: "" };
+            }
+            setRowDrafts(drafts);
+          }
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -184,6 +216,56 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
     }
   }
 
+  async function reasignarUna(excepcionId: string) {
+    const draft = rowDrafts[excepcionId];
+    if (!draft?.usuario.trim() && !draft?.activo.trim()) {
+      setError("Indica nuevo usuario y/o nuevo PC en esa fila.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await reasignarExcepcionOperacionAction({
+        eventoId: id,
+        excepcionId,
+        nuevoUsuario: draft.usuario.trim() || undefined,
+        nuevoActivo: draft.activo.trim() || undefined,
+      });
+      setData(updated);
+      setRowDrafts((prev) => ({
+        ...prev,
+        [excepcionId]: { usuario: "", activo: "" },
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo reasignar");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reasignarTodas() {
+    if (!bulkUsuario.trim() && !bulkActivo.trim()) {
+      setError("Indica nuevo usuario y/o nuevo PC para aplicar a todas.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await reasignarTodasOperacionAction({
+        eventoId: id,
+        nuevoUsuario: bulkUsuario.trim() || undefined,
+        nuevoActivo: bulkActivo.trim() || undefined,
+      });
+      setData(updated);
+      setBulkUsuario("");
+      setBulkActivo("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo reasignar");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function cerrar() {
     setBusy(true);
     try {
@@ -199,13 +281,13 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
   }
   if (!data) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Evento no encontrado.
-      </p>
+      <p className="text-sm text-muted-foreground">Evento no encontrado.</p>
     );
   }
 
   const pendientes = data.excepciones.filter((e) => !e.revisada).length;
+  const esBaja = data.tipo === "BajaUsuario";
+  const esCambio = data.tipo === "CambioDispositivo";
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -243,72 +325,200 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
         ) : null}
       </div>
 
+      {data.estado === "Abierto" && data.excepciones.length > 0 ? (
+        <Card className="shadow-none border-sky-500/25 bg-sky-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ArrowRightLeft className="size-4" />
+              Reasignación rápida
+            </CardTitle>
+            <CardDescription>
+              {esBaja
+                ? "Asigna un nuevo titular (y/o PC) a las excepciones que se mantienen. Luego marca cada una como revisada."
+                : null}
+              {esCambio
+                ? "Asigna el nuevo PC a las excepciones que se mantienen. Luego marca cada una como revisada."
+                : null}
+              {!esBaja && !esCambio
+                ? "Actualiza usuario y/o PC sin cerrar el checklist."
+                : null}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs">
+                <User className="size-3.5" />
+                Nuevo usuario
+              </Label>
+              <Input
+                value={bulkUsuario}
+                onChange={(e) => setBulkUsuario(e.target.value)}
+                placeholder={
+                  esBaja
+                    ? "Quien hereda las excepciones…"
+                    : "Opcional · titular"
+                }
+                className="h-10"
+                disabled={busy}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5 text-xs">
+                <Laptop className="size-3.5" />
+                Nuevo PC / activo
+              </Label>
+              <Input
+                value={bulkActivo}
+                onChange={(e) => setBulkActivo(e.target.value)}
+                placeholder={
+                  esCambio
+                    ? "Hostname del equipo nuevo…"
+                    : "Opcional · equipo"
+                }
+                className="h-10"
+                disabled={busy}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => void reasignarTodas()}
+                className="w-full sm:w-auto"
+              >
+                Aplicar a todas
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {error ? (
         <p className="text-sm text-rose-700" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {data.excepciones.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No había excepciones activas al crear el evento.
           </p>
         ) : (
-          data.excepciones.map((e) => (
-            <div
-              key={e.id}
-              className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href={`/excepciones/${e.id}`}
-                    className="font-mono text-sm font-medium text-primary hover:underline"
-                  >
-                    {e.id}
-                  </Link>
-                  <EstadoBadge estado={e.estado as EstadoExcepcion} />
-                  <span className="text-xs text-muted-foreground">
-                    {DOMINIO_LABELS[e.dominio as Dominio] ?? e.dominio}
-                  </span>
-                  {e.revisada ? (
-                    <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-800 dark:text-emerald-300">
-                      Revisada
-                    </span>
+          data.excepciones.map((e) => {
+            const draft = rowDrafts[e.id] ?? { usuario: "", activo: "" };
+            return (
+              <div
+                key={e.id}
+                className="space-y-3 rounded-2xl border border-border bg-card px-4 py-3"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/excepciones/${e.id}`}
+                        className="font-mono text-sm font-medium text-primary hover:underline"
+                      >
+                        {e.id}
+                      </Link>
+                      <EstadoBadge estado={e.estado as EstadoExcepcion} />
+                      <span className="text-xs text-muted-foreground">
+                        {DOMINIO_LABELS[e.dominio as Dominio] ?? e.dominio}
+                      </span>
+                      {e.revisada ? (
+                        <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-800 dark:text-emerald-300">
+                          Revisada
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {e.tipo_excepcion}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        Usuario:
+                      </span>{" "}
+                      {e.solicitante_email || "—"}
+                      <span className="mx-2">·</span>
+                      <span className="font-medium text-foreground">
+                        Equipo:
+                      </span>{" "}
+                      {e.activo_afectado || "—"}
+                    </p>
+                  </div>
+                  {data.estado === "Abierto" ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => void toggleRevisada(e.id, !e.revisada)}
+                      >
+                        {e.revisada ? "Desmarcar" : "Marcar revisada"}
+                      </Button>
+                      {(e.estado === "Pendiente" ||
+                        e.estado === "Aprobada" ||
+                        e.estado === "Caducada") && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void cancelarYMarcar(e.id)}
+                        >
+                          Cancelar excepción
+                        </Button>
+                      )}
+                    </div>
                   ) : null}
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {e.tipo_excepcion}
-                </p>
-              </div>
-              {data.estado === "Abierto" ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void toggleRevisada(e.id, !e.revisada)}
-                  >
-                    {e.revisada ? "Desmarcar" : "Marcar revisada"}
-                  </Button>
-                  {(e.estado === "Pendiente" ||
-                    e.estado === "Aprobada" ||
-                    e.estado === "Caducada") && (
+
+                {data.estado === "Abierto" && !e.revisada ? (
+                  <div className="grid gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <Input
+                      value={draft.usuario}
+                      onChange={(ev) =>
+                        setRowDrafts((prev) => ({
+                          ...prev,
+                          [e.id]: {
+                            ...draft,
+                            usuario: ev.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Nuevo usuario…"
+                      className="h-9"
+                      disabled={busy}
+                    />
+                    <Input
+                      value={draft.activo}
+                      onChange={(ev) =>
+                        setRowDrafts((prev) => ({
+                          ...prev,
+                          [e.id]: {
+                            ...draft,
+                            activo: ev.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Nuevo PC…"
+                      className="h-9"
+                      disabled={busy}
+                    />
                     <Button
                       type="button"
                       size="sm"
+                      variant="secondary"
                       disabled={busy}
-                      onClick={() => void cancelarYMarcar(e.id)}
+                      onClick={() => void reasignarUna(e.id)}
                     >
-                      Cancelar excepción
+                      Reasignar
                     </Button>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ))
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
         )}
       </div>
 

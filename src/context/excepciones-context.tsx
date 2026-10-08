@@ -92,6 +92,16 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh, pathname]);
 
+  useEffect(() => {
+    function onSandboxChanged() {
+      void refresh();
+    }
+    window.addEventListener("sandbox-mode-changed", onSandboxChanged);
+    return () => {
+      window.removeEventListener("sandbox-mode-changed", onSandboxChanged);
+    };
+  }, [refresh]);
+
   const getById = useCallback(
     (id: string) => excepciones.find((e) => e.id === id),
     [excepciones]

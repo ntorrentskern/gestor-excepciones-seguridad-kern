@@ -3,6 +3,7 @@
 import { requireCurrentUser } from "@/lib/auth/session-user";
 import { assertCan } from "@/lib/auth/permissions";
 import { neonExcepcionesRepository } from "@/lib/excepciones/db-repository";
+import { resolveSandboxFilter } from "@/lib/sandbox/actions";
 import type {
   AmpliarInput,
   DecisionInput,
@@ -21,7 +22,11 @@ export async function listExcepciones(
   filters?: ExcepcionFilters
 ): Promise<Excepcion[]> {
   await requireCurrentUser();
-  return neonExcepcionesRepository.list(filters);
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+  return neonExcepcionesRepository.list({
+    ...filters,
+    is_sandbox: sandboxMode,
+  });
 }
 
 export async function getExcepcionById(
@@ -37,12 +42,15 @@ export async function createExcepcion(
   const user = await requireCurrentUser();
   assertCan(user.rol, "create");
 
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+
   const payload: NuevaExcepcionInput = {
     ...input,
     // Helpdesk/Sistemas siempre crean como Pendiente; solo Seguridad puede forzar otro estado.
     estado: canSetEstadoManual(user.rol)
       ? (input.estado ?? "Pendiente")
       : "Pendiente",
+    is_sandbox: sandboxMode ? true : Boolean(input.is_sandbox),
   };
 
   return neonExcepcionesRepository.create(payload);

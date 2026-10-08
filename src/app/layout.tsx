@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { AuthProvider } from "@/context/auth-context";
 import { ExcepcionesProvider } from "@/context/excepciones-context";
+import { SandboxProvider } from "@/context/sandbox-context";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -38,9 +39,11 @@ export default function RootLayout({
       <body className={`${plexSans.className} min-h-full`}>
         <ThemeProvider>
           <AuthProvider>
-            <ExcepcionesProvider>
-              <AppShell>{children}</AppShell>
-            </ExcepcionesProvider>
+            <SandboxProvider>
+              <ExcepcionesProvider>
+                <AppShell>{children}</AppShell>
+              </ExcepcionesProvider>
+            </SandboxProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

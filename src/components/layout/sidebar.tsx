@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ClipboardList,
+  FlaskConical,
   Headphones,
   LayoutDashboard,
   ListChecks,
@@ -18,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/lib/auth/actions";
 import { useAuth } from "@/context/auth-context";
+import { useSandbox } from "@/context/sandbox-context";
 
 const navItems = [
   {
@@ -95,6 +97,8 @@ function isActive(pathname: string, href: string): boolean {
 export function Sidebar() {
   const pathname = usePathname();
   const { user, can } = useAuth();
+  const { allowed: sandboxAllowed, enabled: sandboxEnabled, toggle } =
+    useSandbox();
   const showAdmin = can("manage_users");
 
   return (
@@ -110,6 +114,11 @@ export function Sidebar() {
           <p className="truncate text-xs text-muted-foreground">
             IT · Seguridad · Sistemas · Helpdesk
           </p>
+          {sandboxEnabled ? (
+            <span className="mt-1 inline-flex rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+              Demo
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -192,6 +201,69 @@ export function Sidebar() {
               </span>
             </span>
           </Link>
+        ) : null}
+
+        {sandboxAllowed ? (
+          <>
+            <Link
+              href="/demo"
+              className={cn(
+                "group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors",
+                isActive(pathname, "/demo")
+                  ? "bg-amber-500/15 text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <FlaskConical
+                className={cn(
+                  "mt-0.5 size-4 shrink-0",
+                  isActive(pathname, "/demo")
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-muted-foreground group-hover:text-foreground"
+                )}
+                aria-hidden
+              />
+              <span className="min-w-0">
+                <span
+                  className={cn(
+                    "block text-sm",
+                    isActive(pathname, "/demo")
+                      ? "font-semibold"
+                      : "font-medium"
+                  )}
+                >
+                  Modo demo
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Entorno de demostración
+                </span>
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={toggle}
+              className={cn(
+                "flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                sandboxEnabled
+                  ? "bg-amber-500/15 text-amber-900 dark:text-amber-100"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <span className="font-medium">
+                {sandboxEnabled ? "Demo activo" : "Activar demo"}
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                  sandboxEnabled
+                    ? "bg-amber-600 text-white"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {sandboxEnabled ? "ON" : "OFF"}
+              </span>
+            </button>
+          </>
         ) : null}
       </nav>
 

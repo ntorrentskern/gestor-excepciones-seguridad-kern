@@ -37,5 +37,7 @@ export type EventoOperativoDetalle = EventoOperativo & {
     dominio: string;
     estado: string;
     revisada: boolean;
+    solicitante_email: string;
+    activo_afectado: string;
   }>;
 };

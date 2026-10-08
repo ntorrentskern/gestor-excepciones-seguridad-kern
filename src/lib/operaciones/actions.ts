@@ -1,6 +1,7 @@
 "use server";
 
 import { requireCurrentUser } from "@/lib/auth/session-user";
+import { resolveSandboxFilter } from "@/lib/sandbox/actions";
 import {
   cerrarEventoOperativo,
   createEventoOperativo,
@@ -8,6 +9,8 @@ import {
   listEventosOperativos,
   listEventosOperativosBySujeto,
   marcarExcepcionRevisada,
+  reasignarExcepcionEnOperacion,
+  reasignarTodasEnOperacion,
 } from "@/lib/operaciones/repository";
 import type {
   EventoOperativo,
@@ -48,7 +51,11 @@ export async function listAllEventosOperativosAction(filters?: {
   estado?: "Abierto" | "Cerrado" | "Todos";
 }): Promise<EventoOperativoListItem[]> {
   await requireCurrentUser();
-  return listEventosOperativos(filters);
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+  return listEventosOperativos({
+    ...filters,
+    is_sandbox: sandboxMode,
+  });
 }
 
 export async function marcarRevisadaAction(input: {
@@ -62,6 +69,31 @@ export async function marcarRevisadaAction(input: {
     input.excepcionId,
     input.revisada
   );
+}
+
+export async function reasignarExcepcionOperacionAction(input: {
+  eventoId: string;
+  excepcionId: string;
+  nuevoUsuario?: string;
+  nuevoActivo?: string;
+}): Promise<EventoOperativoDetalle> {
+  const user = await requireCurrentUser();
+  return reasignarExcepcionEnOperacion({
+    ...input,
+    actorEmail: user.email,
+  });
+}
+
+export async function reasignarTodasOperacionAction(input: {
+  eventoId: string;
+  nuevoUsuario?: string;
+  nuevoActivo?: string;
+}): Promise<EventoOperativoDetalle> {
+  const user = await requireCurrentUser();
+  return reasignarTodasEnOperacion({
+    ...input,
+    actorEmail: user.email,
+  });
 }
 
 export async function cerrarEventoOperativoAction(
