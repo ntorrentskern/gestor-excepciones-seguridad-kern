@@ -37,6 +37,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      # false por defecto: HTTP en intranet. true solo con HTTPS.
+      SECURE_COOKIES: ${SECURE_COOKIES:-false}
+      AUTH_SECRET: ${AUTH_SECRET:-cambia-este-secreto-en-produccion}
     ports:
       - "${APP_PORT:-3000}:3000"
 

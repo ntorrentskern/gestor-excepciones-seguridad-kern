@@ -2,6 +2,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const SESSION_COOKIE = "ges_session";
 
+/**
+ * Cookie Secure solo si SECURE_COOKIES=true.
+ * Por defecto false: despliegue HTTP en intranet (p. ej. 10.13.0.44).
+ * En HTTPS público: SECURE_COOKIES=true
+ */
+export function secureCookiesEnabled(): boolean {
+  return process.env.SECURE_COOKIES === "true";
+}
+
 export type SessionPayload = {
   userId: string;
   email: string;

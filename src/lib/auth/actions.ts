@@ -7,6 +7,7 @@ import {
   SESSION_COOKIE,
   decodeSession,
   encodeSession,
+  secureCookiesEnabled,
   sessionMaxAgeSeconds,
   type SessionPayload,
 } from "@/lib/auth/session";
@@ -23,7 +24,7 @@ async function setSessionCookie(payload: SessionPayload, remember: boolean) {
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookiesEnabled(),
     sameSite: "lax",
     path: "/",
     maxAge: sessionMaxAgeSeconds(remember),
