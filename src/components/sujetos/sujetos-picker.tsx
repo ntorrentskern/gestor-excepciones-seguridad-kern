@@ -28,6 +28,8 @@ type Props = {
   onChange: (next: SujetoInput[]) => void;
   /** Si true, el picker solo ofrece «Otro» (recomendado en alta). */
   soloOtro?: boolean;
+  /** Sustituye el texto de ayuda bajo el título. */
+  hint?: string;
   className?: string;
 };
 
@@ -78,6 +80,7 @@ export function SujetosPicker({
   value,
   onChange,
   soloOtro = false,
+  hint,
   className,
 }: Props) {
   const [tipo, setTipo] = useState<TipoSujeto>(soloOtro ? "otro" : "otro");
@@ -124,8 +127,8 @@ export function SujetosPicker({
       <div>
         <Label>Vínculos</Label>
         <p className="mt-1 text-xs text-muted-foreground">
-          Usuario y Activo se crean solos desde el titular y su equipo.
-          Aquí solo añades vínculos «Otro» (ticket, ubicación…).
+          {hint ??
+            "Usuario y Activo se crean solos desde el titular y su equipo. Aquí solo añades vínculos «Otro» (ticket, ubicación…)."}
         </p>
       </div>
 

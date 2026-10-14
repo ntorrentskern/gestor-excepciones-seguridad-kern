@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import {
+  createExcepcionesEnBloque,
   excepcionesRepository,
   type AmpliarInput,
   type ComentarInput,
@@ -35,6 +36,7 @@ interface ExcepcionesContextValue {
   refresh: () => Promise<void>;
   getById: (id: string) => Excepcion | undefined;
   create: (input: NuevaExcepcionInput) => Promise<Excepcion>;
+  createMany: (inputs: NuevaExcepcionInput[]) => Promise<Excepcion[]>;
   editar: (id: string, input: EditarExcepcionInput) => Promise<Excepcion>;
   aprobar: (id: string, input?: DecisionInput) => Promise<Excepcion>;
   rechazar: (id: string, input?: DecisionInput) => Promise<Excepcion>;
@@ -110,6 +112,12 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
   const create = useCallback(async (input: NuevaExcepcionInput) => {
     const created = await excepcionesRepository.create(input);
     setExcepciones((prev) => sortById([created, ...prev]));
+    return created;
+  }, []);
+
+  const createMany = useCallback(async (inputs: NuevaExcepcionInput[]) => {
+    const created = await createExcepcionesEnBloque(inputs);
+    setExcepciones((prev) => sortById([...created, ...prev]));
     return created;
   }, []);
 
@@ -227,6 +235,7 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
       refresh,
       getById,
       create,
+      createMany,
       editar,
       aprobar,
       rechazar,
@@ -245,6 +254,7 @@ export function ExcepcionesProvider({ children }: { children: ReactNode }) {
       refresh,
       getById,
       create,
+      createMany,
       editar,
       aprobar,
       rechazar,

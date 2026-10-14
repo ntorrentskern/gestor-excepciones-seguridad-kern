@@ -8,6 +8,7 @@ import {
   cancelarExcepcion,
   comentarExcepcion,
   createExcepcion,
+  createExcepciones,
   editarExcepcion,
   getExcepcionById,
   listExcepciones,
@@ -25,6 +26,9 @@ export type {
 } from "@/lib/excepciones/types";
 
 export { fechaAmpliacionPorDefecto } from "@/lib/excepciones/utils";
+
+/** Alta de varias excepciones (un ID por usuario–PC), en serie para no repetir ID. */
+export const createExcepcionesEnBloque = createExcepciones;
 
 export const excepcionesRepository: ExcepcionesRepository = {
   list: listExcepciones,

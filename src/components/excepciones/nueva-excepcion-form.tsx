@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarClock,
   ClipboardPen,
   FileText,
   Laptop,
+  Plus,
   Shield,
+  Trash2,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -62,8 +65,6 @@ function buildInitial(dominio: Dominio) {
     tipo_excepcion: "" as TipoExcepcion | "",
     origen_solicitud: "" as OrigenSolicitud | "",
     jira_ticket_id: "",
-    solicitante_email: "",
-    activo_afectado: "",
     justificacion: "",
     control_compensatorio: "",
     estado: "Pendiente" as EstadoExcepcion,
@@ -115,6 +116,46 @@ function Section({
   );
 }
 
+type ParAfectado = {
+  key: string;
+  usuario: string;
+  pc: string;
+};
+
+function nuevoPar(usuario = "", pc = ""): ParAfectado {
+  return {
+    key:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    usuario,
+    pc,
+  };
+}
+
+function paresListos(pares: ParAfectado[]): {
+  error: string | null;
+  pares: Array<{ usuario: string; pc: string }>;
+} {
+  const conAlgo = pares
+    .map((p) => ({ usuario: p.usuario.trim(), pc: p.pc.trim() }))
+    .filter((p) => p.usuario || p.pc);
+
+  if (conAlgo.length === 0) {
+    return { error: "Indica al menos un usuario y su PC.", pares: [] };
+  }
+
+  const incompleto = conAlgo.find((p) => !p.usuario || !p.pc);
+  if (incompleto) {
+    return {
+      error: "Cada fila necesita el usuario y el PC. Quita las que estén a medias.",
+      pares: [],
+    };
+  }
+
+  return { error: null, pares: conAlgo };
+}
+
 function Field({
   className,
   children,
@@ -128,7 +169,7 @@ function Field({
 export function NuevaExcepcionForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { create } = useExcepciones();
+  const { createMany, refresh } = useExcepciones();
   const { user } = useAuth();
   const { enabled: sandboxEnabled } = useSandbox();
   const puedeEstado = user ? canSetEstadoManual(user.rol) : false;
@@ -152,11 +193,13 @@ export function NuevaExcepcionForm() {
     });
   }, [searchParams]);
 
-  const [form, setForm] = useState(() => ({
-    ...buildInitial(dominioInicial),
-    solicitante_email: prefill.solicitante_email,
-    activo_afectado: prefill.activo_afectado,
-  }));
+  const [form, setForm] = useState(() => buildInitial(dominioInicial));
+  const [pares, setPares] = useState<ParAfectado[]>(() => [
+    nuevoPar(prefill.solicitante_email, prefill.activo_afectado),
+  ]);
+  const [creadas, setCreadas] = useState<
+    Array<{ id: string; usuario: string; pc: string }> | null
+  >(null);
   const [manualSujetos, setManualSujetos] = useState<SujetoInput[]>(() =>
     prefill.sujetos.filter((s) => !s.auto)
   );
@@ -169,8 +212,6 @@ export function NuevaExcepcionForm() {
       if (prev.dominio === dominioInicial) return prev;
       return {
         ...buildInitial(dominioInicial),
-        solicitante_email: prev.solicitante_email,
-        activo_afectado: prev.activo_afectado,
         origen_solicitud: prev.origen_solicitud,
         jira_ticket_id: prev.jira_ticket_id,
         justificacion: prev.justificacion,
@@ -187,27 +228,18 @@ export function NuevaExcepcionForm() {
 
   useEffect(() => {
     if (!prefill.solicitante_email && !prefill.activo_afectado) return;
-    setForm((prev) => ({
-      ...prev,
-      solicitante_email: prev.solicitante_email || prefill.solicitante_email,
-      activo_afectado: prev.activo_afectado || prefill.activo_afectado,
-    }));
+    setPares((prev) => {
+      const first = prev[0];
+      if (!first || first.usuario.trim() || first.pc.trim()) return prev;
+      const next = [...prev];
+      next[0] = {
+        ...first,
+        usuario: prefill.solicitante_email,
+        pc: prefill.activo_afectado,
+      };
+      return next;
+    });
   }, [prefill]);
-
-  const sujetosMerged = useMemo(
-    () =>
-      mergeSujetosAutoManual({
-        usuarioAfectado: form.solicitante_email,
-        equipoAfectado: form.activo_afectado,
-        manual: manualSujetos,
-      }),
-    [form.solicitante_email, form.activo_afectado, manualSujetos]
-  );
-
-  const autoSujetos = useMemo(
-    () => sujetosMerged.filter((s) => s.auto),
-    [sujetosMerged]
-  );
 
   const tiposDisponibles = tiposDeDominio(form.dominio);
   const muestraJira = form.origen_solicitud === "Jira";
@@ -252,6 +284,12 @@ export function NuevaExcepcionForm() {
       return;
     }
 
+    const afectados = paresListos(pares);
+    if (afectados.error) {
+      setError(afectados.error);
+      return;
+    }
+
     const aprobador = resolveAprobador();
     if (!aprobador) {
       setError("Indica el aprobador (correo o nombre).");
@@ -260,14 +298,12 @@ export function NuevaExcepcionForm() {
 
     try {
       setSubmitting(true);
-      const created = await create({
+      const compartido = {
         dominio: form.dominio,
         tipo_excepcion: form.tipo_excepcion,
         origen_solicitud: form.origen_solicitud,
         jira_ticket_id:
           form.origen_solicitud === "Jira" ? form.jira_ticket_id.trim() : null,
-        solicitante_email: form.solicitante_email.trim(),
-        activo_afectado: form.activo_afectado.trim(),
         justificacion: form.justificacion.trim(),
         control_compensatorio: form.control_compensatorio.trim(),
         estado: puedeEstado ? form.estado : "Pendiente",
@@ -275,11 +311,36 @@ export function NuevaExcepcionForm() {
         fecha_revision: form.fecha_revision,
         aprobador_email: aprobador,
         solicitado_por: form.solicitado_por.trim() || undefined,
-        sujetos: sujetosMerged.length > 0 ? sujetosMerged : undefined,
         is_sandbox: sandboxEnabled || undefined,
-      });
-      router.push(`/excepciones/${created.id}`);
+      };
+      const created = await createMany(
+        afectados.pares.map((par) => {
+          const sujetos = mergeSujetosAutoManual({
+            usuarioAfectado: par.usuario,
+            equipoAfectado: par.pc,
+            manual: manualSujetos,
+          });
+          return {
+            ...compartido,
+            solicitante_email: par.usuario,
+            activo_afectado: par.pc,
+            sujetos: sujetos.length > 0 ? sujetos : undefined,
+          };
+        })
+      );
+      if (created.length === 1) {
+        router.push(`/excepciones/${created[0].id}`);
+        return;
+      }
+      setCreadas(
+        created.map((exc, index) => ({
+          id: exc.id,
+          usuario: afectados.pares[index]?.usuario ?? exc.solicitante_email,
+          pc: afectados.pares[index]?.pc ?? exc.activo_afectado,
+        }))
+      );
     } catch (err) {
+      void refresh();
       setError(
         err instanceof Error ? err.message : "No se pudo guardar la excepción"
       );
@@ -287,6 +348,44 @@ export function NuevaExcepcionForm() {
       setSubmitting(false);
     }
   }
+
+  if (creadas && creadas.length > 1) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 rounded-2xl border border-border bg-card p-6">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {creadas.length} excepciones creadas
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Misma justificación, fechas y aprobación. Cada usuario tiene su
+            excepción y su ID.
+          </p>
+        </div>
+        <ul className="divide-y divide-border rounded-xl border border-border">
+          {creadas.map((item) => (
+            <li key={item.id}>
+              <Link
+                href={`/excepciones/${item.id}`}
+                className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-muted/50"
+              >
+                <span className="font-medium">{item.id}</span>
+                <span className="text-muted-foreground">
+                  {item.usuario} · {item.pc}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <Button type="button" onClick={() => router.push("/excepciones")}>
+          Ir al listado
+        </Button>
+      </div>
+    );
+  }
+
+  const filasConDatos = pares.filter(
+    (p) => p.usuario.trim() || p.pc.trim()
+  ).length;
 
   return (
     <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-5">
@@ -309,8 +408,6 @@ export function NuevaExcepcionForm() {
                       ...buildInitial(d),
                       origen_solicitud: f.origen_solicitud,
                       jira_ticket_id: f.jira_ticket_id,
-                      solicitante_email: f.solicitante_email,
-                      activo_afectado: f.activo_afectado,
                       justificacion: f.justificacion,
                       control_compensatorio: f.control_compensatorio,
                       temporalidad: f.temporalidad,
@@ -367,55 +464,111 @@ export function NuevaExcepcionForm() {
 
       <Section
         icon={User}
-        title="Usuario y equipo (correlación)"
-        description="El usuario afectado es el titular del equipo. Así correlamos PC ↔ persona."
+        title="Usuarios y equipos"
+        description="Una fila por usuario y su PC. Si hay varias, se crea una excepción distinta por fila, con la misma justificación y fechas."
         accent="bg-sky-500/10 text-sky-700 dark:text-sky-300"
       >
-        <Field>
-          <Label htmlFor="usuario-afectado" className="flex items-center gap-1.5">
-            <User className="size-3.5 text-muted-foreground" />
-            Usuario afectado
-          </Label>
-          <Input
-            id="usuario-afectado"
-            required
-            value={form.solicitante_email}
-            onChange={(e) => {
-              markTouched("usuario");
-              setForm((f) => ({ ...f, solicitante_email: e.target.value }));
-            }}
-            placeholder="Titular del equipo · usuario@empresa.com"
-            className={cn(
-              "h-11",
-              form.solicitante_email.trim() && "border-sky-500/40 bg-sky-500/5"
-            )}
-          />
+        <Field className="sm:col-span-2">
+          <div className="space-y-2">
+            {pares.map((par, index) => (
+              <div
+                key={par.key}
+                className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+              >
+                <div className="space-y-1">
+                  {index === 0 ? (
+                    <Label
+                      htmlFor={`usuario-${par.key}`}
+                      className="flex items-center gap-1.5"
+                    >
+                      <User className="size-3.5 text-muted-foreground" />
+                      Usuario afectado
+                    </Label>
+                  ) : (
+                    <span className="sr-only">Usuario {index + 1}</span>
+                  )}
+                  <Input
+                    id={`usuario-${par.key}`}
+                    value={par.usuario}
+                    onChange={(e) =>
+                      setPares((rows) =>
+                        rows.map((row) =>
+                          row.key === par.key
+                            ? { ...row, usuario: e.target.value }
+                            : row
+                        )
+                      )
+                    }
+                    placeholder="usuario@empresa.com"
+                    className={cn(
+                      "h-11",
+                      par.usuario.trim() && "border-sky-500/40 bg-sky-500/5"
+                    )}
+                    aria-label={`Usuario ${index + 1}`}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {index === 0 ? (
+                    <Label
+                      htmlFor={`pc-${par.key}`}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Laptop className="size-3.5 text-muted-foreground" />
+                      PC / equipo
+                    </Label>
+                  ) : (
+                    <span className="sr-only">PC {index + 1}</span>
+                  )}
+                  <Input
+                    id={`pc-${par.key}`}
+                    value={par.pc}
+                    onChange={(e) =>
+                      setPares((rows) =>
+                        rows.map((row) =>
+                          row.key === par.key
+                            ? { ...row, pc: e.target.value }
+                            : row
+                        )
+                      )
+                    }
+                    placeholder="Hostname del PC"
+                    className={cn(
+                      "h-11",
+                      par.pc.trim() && "border-sky-500/40 bg-sky-500/5"
+                    )}
+                    aria-label={`PC del usuario ${index + 1}`}
+                  />
+                </div>
+                <div className={cn(index === 0 && "sm:pt-7")}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11"
+                    disabled={pares.length === 1}
+                    onClick={() =>
+                      setPares((rows) => rows.filter((row) => row.key !== par.key))
+                    }
+                    aria-label={`Quitar usuario ${index + 1}`}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3"
+            onClick={() => setPares((rows) => [...rows, nuevoPar()])}
+          >
+            <Plus className="size-4" />
+            Añadir usuario
+          </Button>
           <p className="text-xs text-muted-foreground">
-            Quien tiene asignado el PC / activo (no quien abre el ticket).
-          </p>
-        </Field>
-
-        <Field>
-          <Label htmlFor="equipo-afectado" className="flex items-center gap-1.5">
-            <Laptop className="size-3.5 text-muted-foreground" />
-            Equipo afectado
-          </Label>
-          <Input
-            id="equipo-afectado"
-            required
-            value={form.activo_afectado}
-            onChange={(e) => {
-              markTouched("equipo");
-              setForm((f) => ({ ...f, activo_afectado: e.target.value }));
-            }}
-            placeholder="Hostname del PC / activo del usuario"
-            className={cn(
-              "h-11",
-              form.activo_afectado.trim() && "border-sky-500/40 bg-sky-500/5"
-            )}
-          />
-          <p className="text-xs text-muted-foreground">
-            El equipo de ese usuario. Varios: sepáralos con ;
+            {filasConDatos > 1
+              ? `Se crearán ${filasConDatos} excepciones, cada una con su ID y solo el usuario y el PC de su fila.`
+              : "El usuario es el titular del PC. Quien abre el ticket, si es otra persona, va en «Solicitado por»."}
           </p>
         </Field>
 
@@ -443,10 +596,14 @@ export function NuevaExcepcionForm() {
 
         <Field className="sm:col-span-2">
           <SujetosPicker
-            autoItems={autoSujetos}
             value={manualSujetos}
             onChange={setManualSujetos}
             soloOtro
+            hint={
+              filasConDatos > 1
+                ? "Estos vínculos extra se copian en cada excepción. El usuario y su PC van solo en la suya."
+                : "El usuario y el PC se vinculan solos desde la fila de arriba. Aquí solo añades vínculos «Otro» (ticket, ubicación…)."
+            }
           />
         </Field>
       </Section>
@@ -649,9 +806,11 @@ export function NuevaExcepcionForm() {
 
       <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <p className="text-xs text-muted-foreground">
-          {autoSujetos.length} vínculo{autoSujetos.length === 1 ? "" : "s"} auto
+          {filasConDatos > 1
+            ? `${filasConDatos} excepciones`
+            : "1 excepción"}
           {manualSujetos.length > 0
-            ? ` · ${manualSujetos.length} manual${manualSujetos.length === 1 ? "" : "es"}`
+            ? ` · ${manualSujetos.length} vínculo${manualSujetos.length === 1 ? "" : "s"} extra`
             : ""}
         </p>
         <div className="flex gap-2">
@@ -664,7 +823,11 @@ export function NuevaExcepcionForm() {
             Cancelar
           </Button>
           <Button type="submit" disabled={submitting} className="min-w-[160px]">
-            {submitting ? "Guardando…" : "Guardar excepción"}
+            {submitting
+              ? "Guardando…"
+              : filasConDatos > 1
+                ? `Crear ${filasConDatos} excepciones`
+                : "Guardar excepción"}
           </Button>
         </div>
       </div>

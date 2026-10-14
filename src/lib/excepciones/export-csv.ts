@@ -1,22 +1,26 @@
 import type { Excepcion } from "@/types/excepcion";
 
-const CSV_HEADERS = [
-  "id",
-  "dominio",
-  "tipo_excepcion",
-  "origen_solicitud",
-  "jira_ticket_id",
-  "solicitante_email",
-  "activo_afectado",
-  "justificacion",
-  "control_compensatorio",
-  "estado",
-  "temporalidad",
-  "fecha_solicitud",
-  "fecha_revision",
-  "aprobador_email",
-  "fecha_decision",
+export const CSV_COLUMNS = [
+  { key: "id", label: "ID" },
+  { key: "dominio", label: "Dominio" },
+  { key: "tipo_excepcion", label: "Tipo de excepción" },
+  { key: "origen_solicitud", label: "Origen" },
+  { key: "jira_ticket_id", label: "Ticket Jira" },
+  { key: "solicitante_email", label: "Usuario afectado" },
+  { key: "activo_afectado", label: "Equipo / PC" },
+  { key: "justificacion", label: "Justificación" },
+  { key: "control_compensatorio", label: "Control compensatorio" },
+  { key: "estado", label: "Estado" },
+  { key: "temporalidad", label: "Temporalidad" },
+  { key: "fecha_solicitud", label: "Fecha solicitud" },
+  { key: "fecha_revision", label: "Fecha revisión" },
+  { key: "aprobador_email", label: "Aprobador" },
+  { key: "fecha_decision", label: "Fecha decisión" },
 ] as const;
+
+export type CsvColumnKey = (typeof CSV_COLUMNS)[number]["key"];
+
+export const ALL_CSV_COLUMN_KEYS: CsvColumnKey[] = CSV_COLUMNS.map((c) => c.key);
 
 function escapeCsvCell(value: string): string {
   if (/[",\n\r]/.test(value)) {
@@ -25,7 +29,7 @@ function escapeCsvCell(value: string): string {
   return value;
 }
 
-function cellValue(exc: Excepcion, key: (typeof CSV_HEADERS)[number]): string {
+function cellValue(exc: Excepcion, key: CsvColumnKey): string {
   const raw = exc[key];
   if (raw == null) return "";
   return String(raw);
@@ -34,12 +38,24 @@ function cellValue(exc: Excepcion, key: (typeof CSV_HEADERS)[number]): string {
 /** Convierte excepciones filtradas a CSV y dispara la descarga en el navegador. */
 export function exportExcepcionesToCsv(
   excepciones: Excepcion[],
-  filename = `excepciones-${new Date().toISOString().slice(0, 10)}.csv`
+  options?: {
+    columns?: CsvColumnKey[];
+    filename?: string;
+  }
 ): void {
+  const columns =
+    options?.columns && options.columns.length > 0
+      ? options.columns
+      : ALL_CSV_COLUMN_KEYS;
+  const filename =
+    options?.filename ??
+    `excepciones-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  const headerKeys = columns;
   const lines = [
-    CSV_HEADERS.join(","),
+    headerKeys.join(","),
     ...excepciones.map((exc) =>
-      CSV_HEADERS.map((key) => escapeCsvCell(cellValue(exc, key))).join(",")
+      headerKeys.map((key) => escapeCsvCell(cellValue(exc, key))).join(",")
     ),
   ];
 

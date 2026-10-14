@@ -56,6 +56,29 @@ export async function createExcepcion(
   return neonExcepcionesRepository.create(payload);
 }
 
+/** Misma justificación y vigencia, una excepción (y un ID) por usuario–PC. */
+export async function createExcepciones(
+  inputs: NuevaExcepcionInput[]
+): Promise<Excepcion[]> {
+  if (inputs.length === 0) {
+    throw new Error("Indica al menos un usuario y su PC.");
+  }
+
+  const created: Excepcion[] = [];
+  for (const input of inputs) {
+    try {
+      created.push(await createExcepcion(input));
+    } catch (err) {
+      if (created.length === 0) throw err;
+      const msg = err instanceof Error ? err.message : "Error al crear";
+      throw new Error(
+        `Se crearon ${created.map((e) => e.id).join(", ")} y falló la siguiente: ${msg}`
+      );
+    }
+  }
+  return created;
+}
+
 export async function editarExcepcion(
   id: string,
   input: EditarExcepcionInput
