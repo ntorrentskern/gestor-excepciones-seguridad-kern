@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.github
+.vercel
+.cursor
+agent-transcripts
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+*.dump
+*.log
+npm-debug.log*
+coverage
+.gitignore

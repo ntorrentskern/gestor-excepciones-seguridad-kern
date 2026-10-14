@@ -14,7 +14,12 @@
     "db:migrate:sandbox": "node --env-file=.env.local scripts/migrate-sandbox.mjs",
     "db:migrate": "npm run db:migrate:fase1 && npm run db:migrate:fase2 && npm run db:migrate:fase3 && npm run db:migrate:sujetos-tipos && npm run db:migrate:sandbox",
     "db:seed:usuarios": "node --env-file=.env.local scripts/seed-usuarios.mjs",
-    "db:seed:sandbox": "node --env-file=.env.local scripts/seed-sandbox.mjs"
+    "db:seed:sandbox": "node --env-file=.env.local scripts/seed-sandbox.mjs",
+    "db:dump:neon": "node --env-file=.env.local scripts/dump-from-neon.mjs",
+    "db:dump:neon:docker": "node --env-file=.env.local scripts/dump-from-neon-docker.mjs",
+    "db:restore:local": "node scripts/restore-to-local.mjs",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -24,6 +29,7 @@
     "lucide-react": "^1.41.0",
     "next": "16.3.4",
     "next-themes": "^0.4.6",
+    "postgres": "^3.4.9",
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",

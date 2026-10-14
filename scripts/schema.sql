@@ -1,4 +1,4 @@
--- Esquema Gestor de Excepciones (Neon)
+-- Esquema Gestor de Excepciones (Postgres / Neon)
 
 CREATE TABLE IF NOT EXISTS excepciones (
   id TEXT PRIMARY KEY,

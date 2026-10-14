@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: gestor-excepciones-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gestor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gestor}
+      POSTGRES_DB: ${POSTGRES_DB:-gestor_excepciones}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./scripts/schema-usuarios.sql:/docker-entrypoint-initdb.d/02-schema-usuarios.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-gestor} -d ${POSTGRES_DB:-gestor_excepciones}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gestor-excepciones-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://gestor:gestor@postgres:5432/gestor_excepciones}
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  postgres_data:
