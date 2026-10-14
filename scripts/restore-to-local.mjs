@@ -1,9 +1,7 @@
 /**
- * Restaura un .dump en el Postgres del docker-compose.
+ * Restaura backup_excepciones.dump (SQL plano) en el Postgres del compose.
  *
- * Uso (con el servicio postgres arriba):
- *   node --env-file=.env scripts/restore-to-local.mjs
- *   # o
+ * Uso (postgres del compose en marcha, puerto 5432):
  *   node scripts/restore-to-local.mjs
  *
  * Variables:
@@ -11,49 +9,39 @@
  *   LOCAL_DATABASE_URL (default: postgresql://gestor:gestor@localhost:5432/gestor_excepciones)
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import postgres from "postgres";
 
 const dumpFile = resolve(process.env.DUMP_PATH ?? "backup_excepciones.dump");
 const localUrl =
   process.env.LOCAL_DATABASE_URL ??
-  process.env.DATABASE_URL ??
   "postgresql://gestor:gestor@localhost:5432/gestor_excepciones";
 
 if (!existsSync(dumpFile)) {
   console.error(`No existe el dump: ${dumpFile}`);
-  console.error("Genera uno antes con: npm run db:dump:neon");
   process.exit(1);
 }
 
-console.log(`Restaurando ${dumpFile} → Postgres local …`);
+const sqlText = readFileSync(dumpFile, "utf8");
 
-const result = spawnSync(
-  "pg_restore",
-  [
-    "--clean",
-    "--if-exists",
-    "--no-owner",
-    "--no-acl",
-    "-d",
-    localUrl,
-    dumpFile,
-  ],
+// Preferir psql si existe; si no, aplicar con postgres.js
+const psql = spawnSync(
+  "psql",
+  [localUrl, "-v", "ON_ERROR_STOP=1", "-f", dumpFile],
   { stdio: "inherit", shell: process.platform === "win32" }
 );
 
-if (result.error) {
-  console.error(
-    "No se pudo ejecutar pg_restore. Alternativa con Docker:\n" +
-      "  docker compose exec -T postgres pg_restore --clean --if-exists --no-owner --no-acl -U gestor -d gestor_excepciones < backup_excepciones.dump"
-  );
-  console.error(result.error.message);
-  process.exit(1);
+if (!psql.error && (psql.status ?? 1) === 0) {
+  console.log("Restore completado (psql).");
+  process.exit(0);
 }
 
-// pg_restore puede devolver 1 con warnings no fatales
-if ((result.status ?? 1) > 1) {
-  process.exit(result.status ?? 1);
+console.log("psql no disponible; restaurando con postgres.js …");
+const sql = postgres(localUrl, { max: 1, prepare: false });
+try {
+  await sql.unsafe(sqlText);
+  console.log("Restore completado (postgres.js).");
+} finally {
+  await sql.end({ timeout: 5 });
 }
-
-console.log("Restore completado.");

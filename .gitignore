@@ -34,10 +34,6 @@ yarn-error.log*
 .env*
 !.env.example
 
-# dumps de Postgres (Neon → local)
-*.dump
-backup_excepciones.dump
-
 # vercel
 .vercel
 
