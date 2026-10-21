@@ -125,7 +125,7 @@ export default function DemoPage() {
         <ul className="space-y-2 text-sm">
           <li>
             <Link
-              href="/sujetos/suj-demo-maria"
+              href="/cmdb/ficha/suj-demo-maria"
               className="inline-flex items-center gap-1.5 text-primary hover:underline"
             >
               Ficha María López (DEMO)

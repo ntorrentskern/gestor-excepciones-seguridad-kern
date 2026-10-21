@@ -56,7 +56,7 @@ export function TopServicios() {
             {items.map((s, index) => (
               <li key={s.id}>
                 <Link
-                  href={`/sujetos/${s.id}`}
+                  href={`/cmdb/servicio/${s.id}`}
                   className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-muted/40"
                 >
                   <span className="flex min-w-0 items-center gap-3">

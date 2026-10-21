@@ -972,7 +972,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   {serviciosVinculados.map((s) => (
                     <Link
                       key={s.id}
-                      href={`/sujetos/${s.id}`}
+                      href={`/cmdb/servicio/${s.id}`}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300/60 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-950 hover:border-violet-400 dark:border-violet-500/40 dark:text-violet-100"
                     >
                       <span className="font-medium">{s.display_name}</span>
@@ -994,7 +994,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
                   {otrosVinculos.map((s) => (
                     <Link
                       key={s.id}
-                      href={`/sujetos/${s.id}`}
+                      href={`/cmdb/${s.tipo}/${s.id}`}
                       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs hover:border-primary/40 hover:bg-primary/5"
                     >
                       <span className="text-muted-foreground">

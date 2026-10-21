@@ -1,10 +1,13 @@
-import { SujetoFicha } from "@/components/sujetos/sujeto-ficha";
+import { notFound, redirect } from "next/navigation";
+import { getSujetoTipoById } from "@/lib/cmdb/repository";
 
-export default async function SujetoPage({
+export default async function SujetoRedirectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <SujetoFicha id={id} />;
+  const tipo = await getSujetoTipoById(id);
+  if (!tipo) notFound();
+  redirect(`/cmdb/${tipo}/${id}`);
 }

@@ -530,7 +530,7 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
           </Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/sujetos/${data.sujeto_id}`}>Volver a la ficha</Link>
+          <Link href={`/cmdb/ficha/${data.sujeto_id}`}>Volver a la ficha</Link>
         </Button>
       </div>
     </div>

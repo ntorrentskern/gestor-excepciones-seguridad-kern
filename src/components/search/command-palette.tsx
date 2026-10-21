@@ -116,7 +116,7 @@ export function CommandPalette() {
         id: "buscar",
         label: "Buscador / CMDB",
         hint: "Usuario · PC · servicio",
-        href: "/buscar",
+        href: "/cmdb",
         icon: Search,
         keywords: "buscar pc usuario dispositivo servicio cmdb",
       },
@@ -232,7 +232,7 @@ export function CommandPalette() {
           id: s.id,
           label: s.display_name,
           hint: `${TIPO_SUJETO_LABELS[s.tipo]} · ${s.activas} activas`,
-          href: `/sujetos/${s.id}`,
+          href: `/cmdb/${s.tipo}/${s.id}`,
         });
       }
       for (const e of results.excepciones) {
@@ -349,9 +349,9 @@ export function CommandPalette() {
       const item = flatItems[activeIndex];
       if (item) activate(item);
       else if (query.trim().length >= 2) {
-        go(`/buscar?q=${encodeURIComponent(query.trim())}`, {
+        go(`/cmdb?q=${encodeURIComponent(query.trim())}`, {
           label: `Buscar: ${query.trim()}`,
-          href: `/buscar?q=${encodeURIComponent(query.trim())}`,
+          href: `/cmdb?q=${encodeURIComponent(query.trim())}`,
           kind: "search",
         });
       }
@@ -487,8 +487,8 @@ export function CommandPalette() {
             onClick={() =>
               go(
                 query.trim()
-                  ? `/buscar?q=${encodeURIComponent(query.trim())}`
-                  : "/buscar"
+                  ? `/cmdb?q=${encodeURIComponent(query.trim())}`
+                  : "/cmdb"
               )
             }
           >

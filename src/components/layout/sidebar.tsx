@@ -48,7 +48,7 @@ const topItems: NavLeaf[] = [
     icon: LayoutDashboard,
   },
   {
-    href: "/buscar",
+    href: "/cmdb",
     label: "Buscador / CMDB",
     description: "Personas · activos · servicios",
     icon: Search,
@@ -126,6 +126,9 @@ function isActive(pathname: string, href: string): boolean {
       (pathname.startsWith("/excepciones/") &&
         pathname !== "/excepciones/nueva")
     );
+  }
+  if (href === "/cmdb") {
+    return pathname === "/cmdb" || pathname.startsWith("/cmdb/");
   }
   if (href === "/operaciones") {
     return pathname === "/operaciones" || pathname.startsWith("/operaciones/");

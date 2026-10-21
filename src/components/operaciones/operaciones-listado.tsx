@@ -83,7 +83,7 @@ export function OperacionesListado() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/buscar">
+          <Link href="/cmdb">
             <Search className="size-4" />
             Buscar usuario / PC
           </Link>
@@ -151,7 +151,7 @@ export function OperacionesListado() {
                 Créalas desde la ficha de un usuario o PC en el buscador.
               </p>
               <Button asChild className="mt-4" variant="outline">
-                <Link href="/buscar">Ir al buscador</Link>
+                <Link href="/cmdb">Ir a CMDB</Link>
               </Button>
             </div>
           ) : (
