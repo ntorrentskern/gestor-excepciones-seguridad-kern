@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AppWindow,
   ArrowLeft,
   Link2,
   Monitor,
@@ -44,6 +45,7 @@ import { formatearFechaHora } from "@/lib/excepciones/utils";
 
 function iconForTipo(tipo: string) {
   if (tipo === "usuario") return User;
+  if (tipo === "servicio") return AppWindow;
   return Monitor;
 }
 
@@ -141,7 +143,7 @@ export function SujetoFicha({ id }: { id: string }) {
   const Icon = iconForTipo(sujeto.tipo);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <Button asChild variant="ghost" size="sm" className="-ml-2">
@@ -158,10 +160,10 @@ export function SujetoFicha({ id }: { id: string }) {
               <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                 {TIPO_SUJETO_LABELS[sujeto.tipo]}
               </p>
-              <h2 className="text-2xl font-semibold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight">
                 {sujeto.display_name}
               </h2>
-              <p className="mt-1 font-mono text-sm text-muted-foreground">
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
                 {sujeto.clave}
               </p>
             </div>
@@ -184,10 +186,7 @@ export function SujetoFicha({ id }: { id: string }) {
       {activas.length > 0 ? (
         <Card className="shadow-none border-amber-500/30 bg-amber-500/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Checklist operativo</CardTitle>
-            <CardDescription>
-              Excepciones activas a revisar en una baja o cambio de dispositivo.
-            </CardDescription>
+            <CardTitle className="text-base">Excepciones activas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {activas.map((e) => (
@@ -198,7 +197,7 @@ export function SujetoFicha({ id }: { id: string }) {
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-sm font-medium">{e.id}</span>
+                    <span className="font-mono text-xs font-medium">{e.id}</span>
                     <EstadoBadge estado={e.estado} />
                     <span className="text-xs text-muted-foreground">
                       {DOMINIO_LABELS[e.dominio]}
@@ -221,12 +220,14 @@ export function SujetoFicha({ id }: { id: string }) {
         </p>
       )}
 
-      <EventoOperativoPanel
-        sujetoId={sujeto.id}
-        tipoPreferido={
-          sujeto.tipo === "usuario" ? "BajaUsuario" : "CambioDispositivo"
-        }
-      />
+      {sujeto.tipo === "usuario" || sujeto.tipo === "activo" ? (
+        <EventoOperativoPanel
+          sujetoId={sujeto.id}
+          tipoPreferido={
+            sujeto.tipo === "usuario" ? "BajaUsuario" : "CambioDispositivo"
+          }
+        />
+      ) : null}
 
       {eventos.length > 0 ? (
         <Card className="shadow-none">
@@ -279,7 +280,7 @@ export function SujetoFicha({ id }: { id: string }) {
                       className="block rounded-xl border border-border bg-card px-4 py-3 hover:border-primary/40"
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-sm font-medium">
+                        <span className="font-mono text-xs font-medium">
                           {e.id}
                         </span>
                         <EstadoBadge estado={e.estado as EstadoExcepcion} />
@@ -305,7 +306,7 @@ export function SujetoFicha({ id }: { id: string }) {
           </h3>
           {relacionados.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No comparte excepciones con otros usuarios o activos.
+              No comparte excepciones con otros usuarios, activos o servicios.
             </p>
           ) : (
             <div className="space-y-2">
@@ -358,7 +359,7 @@ function Stat({
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${color}`}>
+      <p className={`mt-1 text-xl font-semibold tabular-nums ${color}`}>
         {value}
       </p>
     </div>

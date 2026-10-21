@@ -1,10 +1,11 @@
-export const TIPOS_SUJETO = ["usuario", "activo", "otro"] as const;
+export const TIPOS_SUJETO = ["usuario", "activo", "servicio", "otro"] as const;
 
 export type TipoSujeto = (typeof TIPOS_SUJETO)[number];
 
 export const TIPO_SUJETO_LABELS: Record<TipoSujeto, string> = {
   usuario: "Usuario",
   activo: "Activo",
+  servicio: "Servicio",
   otro: "Otro",
 };
 
@@ -16,11 +17,12 @@ export function isTipoSujeto(value: string): value is TipoSujeto {
   return (TIPOS_SUJETO as readonly string[]).includes(value);
 }
 
-/** Normaliza tipos antiguos (pc, servidor…) al modelo Usuario / Activo / Otro. */
+/** Normaliza tipos antiguos (pc, servidor…) al modelo actual. */
 export function normalizeTipoSujeto(value: string): TipoSujeto {
   if (value === "usuario") return "usuario";
   if (value === "otro") return "otro";
   if (value === "activo") return "activo";
+  if (value === "servicio") return "servicio";
   // legacy
   if (
     value === "pc" ||
@@ -31,6 +33,31 @@ export function normalizeTipoSujeto(value: string): TipoSujeto {
     return "activo";
   }
   return isTipoSujeto(value) ? value : "otro";
+}
+
+/**
+ * Clave canónica de un servicio para evitar duplicados
+ * (Claude / claude / CLAUDE → claude).
+ */
+export function normalizeServicioClave(raw: string): string {
+  let v = raw.trim().toLowerCase();
+  v = v.replace(/^https?:\/\//, "");
+  v = v.replace(/^www\./, "");
+  v = v.replace(/\/+$/, "");
+  v = v.replace(/\s+/g, " ");
+  return v.slice(0, 200);
+}
+
+/** Nombre visible: conserva capitalización razonable del primer alta. */
+export function displayNameServicio(raw: string): string {
+  const trimmed = raw.trim().replace(/\s+/g, " ").slice(0, 200);
+  if (!trimmed) return "";
+  // URLs → hostname limpio
+  const withoutProto = trimmed.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+  if (withoutProto.includes(".") && !withoutProto.includes(" ")) {
+    return withoutProto.replace(/\/+$/, "");
+  }
+  return trimmed;
 }
 
 export type Sujeto = {
@@ -85,12 +112,13 @@ export function splitActivos(raw: string): string[] {
 }
 
 /**
- * Une vínculos automáticos (usuario + equipo) con los manuales («Otro» u extras).
+ * Une vínculos automáticos (usuario + equipo + servicios) con los manuales («Otro»).
  */
 export function mergeSujetosAutoManual(input: {
   usuarioAfectado: string;
   equipoAfectado: string;
   manual: SujetoInput[];
+  servicios?: SujetoInput[];
 }): SujetoInput[] {
   const auto: SujetoInput[] = [];
   const usuario = input.usuarioAfectado.trim();
@@ -107,6 +135,17 @@ export function mergeSujetosAutoManual(input: {
       tipo: "activo",
       clave: part,
       display_name: part,
+      auto: true,
+    });
+  }
+
+  for (const s of input.servicios ?? []) {
+    const clave = normalizeServicioClave(s.clave || s.display_name || "");
+    if (!clave) continue;
+    auto.push({
+      tipo: "servicio",
+      clave,
+      display_name: displayNameServicio(s.display_name || s.clave),
       auto: true,
     });
   }

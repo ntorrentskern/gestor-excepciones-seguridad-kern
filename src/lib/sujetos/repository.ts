@@ -7,7 +7,11 @@ import type {
   SujetoInput,
   TipoSujeto,
 } from "@/types/sujeto";
-import { normalizeTipoSujeto } from "@/types/sujeto";
+import {
+  displayNameServicio,
+  normalizeServicioClave,
+  normalizeTipoSujeto,
+} from "@/types/sujeto";
 import type { Dominio, EstadoExcepcion, Excepcion } from "@/types/excepcion";
 
 type SujetoRow = {
@@ -21,7 +25,8 @@ type SujetoRow = {
   updated_at?: string | Date;
 };
 
-function normalizeClave(value: string): string {
+function normalizeClave(value: string, tipo?: TipoSujeto): string {
+  if (tipo === "servicio") return normalizeServicioClave(value);
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
@@ -43,10 +48,13 @@ function newSujetoId(): string {
 /** Busca o crea un sujeto por tipo+clave (y modo sandbox si se indica). */
 export async function findOrCreateSujeto(input: SujetoInput): Promise<Sujeto> {
   const tipo = normalizeTipoSujeto(input.tipo);
-  const clave = normalizeClave(input.clave);
+  const clave = normalizeClave(input.clave, tipo);
   if (!clave) throw new Error("La clave del sujeto no puede estar vacía.");
 
-  const display = (input.display_name?.trim() || input.clave.trim()).slice(0, 200);
+  const display =
+    tipo === "servicio"
+      ? displayNameServicio(input.display_name || input.clave)
+      : (input.display_name?.trim() || input.clave.trim()).slice(0, 200);
   const notas = input.notas?.trim() ?? "";
   const isSandbox = Boolean(input.is_sandbox);
 
@@ -359,4 +367,170 @@ export function suggestTipoSujeto(clave: string): TipoSujeto {
   if (!v) return "otro";
   if (v.includes("@")) return "usuario";
   return "activo";
+}
+
+/** Catálogo CMDB: listado por tipo (siempre visible sin buscar). */
+export async function listSujetosCatalog(
+  tipo: TipoSujeto,
+  limit = 40,
+  isSandbox = false
+): Promise<SujetoConStats[]> {
+  const rows = (await sql`
+    SELECT
+      s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox,
+      count(e.id)::int AS total_excepciones,
+      count(*) FILTER (
+        WHERE e.estado IN ('Pendiente', 'Aprobada')
+      )::int AS activas,
+      count(*) FILTER (WHERE e.estado = 'Pendiente')::int AS pendientes
+    FROM sujetos s
+    LEFT JOIN excepcion_sujeto es ON es.sujeto_id = s.id
+    LEFT JOIN excepciones e ON e.id = es.excepcion_id AND e.is_sandbox = ${isSandbox}
+    WHERE s.is_sandbox = ${isSandbox}
+      AND s.tipo = ${tipo}
+    GROUP BY s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox
+    ORDER BY activas DESC, total_excepciones DESC, s.display_name ASC
+    LIMIT ${limit}
+  `) as Array<
+    SujetoRow & {
+      total_excepciones: number;
+      activas: number;
+      pendientes: number;
+    }
+  >;
+
+  return rows.map((row) => ({
+    ...mapSujeto(row),
+    total_excepciones: Number(row.total_excepciones) || 0,
+    activas: Number(row.activas) || 0,
+    pendientes: Number(row.pendientes) || 0,
+  }));
+}
+
+/** Autocomplete de servicios existentes (CMDB). */
+export async function searchServicios(
+  query: string,
+  limit = 12,
+  isSandbox = false
+): Promise<SujetoConStats[]> {
+  const q = normalizeServicioClave(query);
+  if (!q) {
+    const top = (await sql`
+      SELECT
+        s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox,
+        count(e.id)::int AS total_excepciones,
+        count(*) FILTER (
+          WHERE e.estado IN ('Pendiente', 'Aprobada')
+        )::int AS activas,
+        count(*) FILTER (WHERE e.estado = 'Pendiente')::int AS pendientes
+      FROM sujetos s
+      LEFT JOIN excepcion_sujeto es ON es.sujeto_id = s.id
+      LEFT JOIN excepciones e ON e.id = es.excepcion_id AND e.is_sandbox = ${isSandbox}
+      WHERE s.is_sandbox = ${isSandbox}
+        AND s.tipo = 'servicio'
+      GROUP BY s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox
+      ORDER BY activas DESC, total_excepciones DESC, s.display_name ASC
+      LIMIT ${limit}
+    `) as Array<
+      SujetoRow & {
+        total_excepciones: number;
+        activas: number;
+        pendientes: number;
+      }
+    >;
+    return top.map((row) => ({
+      ...mapSujeto(row),
+      total_excepciones: Number(row.total_excepciones) || 0,
+      activas: Number(row.activas) || 0,
+      pendientes: Number(row.pendientes) || 0,
+    }));
+  }
+
+  const pattern = `%${q}%`;
+  const prefix = `${q}%`;
+  const rows = (await sql`
+    SELECT
+      s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox,
+      count(e.id)::int AS total_excepciones,
+      count(*) FILTER (
+        WHERE e.estado IN ('Pendiente', 'Aprobada')
+      )::int AS activas,
+      count(*) FILTER (WHERE e.estado = 'Pendiente')::int AS pendientes
+    FROM sujetos s
+    LEFT JOIN excepcion_sujeto es ON es.sujeto_id = s.id
+    LEFT JOIN excepciones e ON e.id = es.excepcion_id AND e.is_sandbox = ${isSandbox}
+    WHERE s.is_sandbox = ${isSandbox}
+      AND s.tipo = 'servicio'
+      AND (
+        lower(s.clave) LIKE ${pattern}
+        OR lower(s.display_name) LIKE ${pattern}
+      )
+    GROUP BY s.id, s.tipo, s.clave, s.display_name, s.notas, s.is_sandbox
+    ORDER BY
+      CASE WHEN lower(s.clave) = ${q} THEN 0
+           WHEN lower(s.clave) LIKE ${prefix} THEN 1
+           ELSE 2 END,
+      activas DESC,
+      total_excepciones DESC,
+      s.display_name ASC
+    LIMIT ${limit}
+  `) as Array<
+    SujetoRow & {
+      total_excepciones: number;
+      activas: number;
+      pendientes: number;
+    }
+  >;
+
+  return rows.map((row) => ({
+    ...mapSujeto(row),
+    total_excepciones: Number(row.total_excepciones) || 0,
+    activas: Number(row.activas) || 0,
+    pendientes: Number(row.pendientes) || 0,
+  }));
+}
+
+export type ServicioTopStat = {
+  id: string;
+  clave: string;
+  display_name: string;
+  total: number;
+  activas: number;
+};
+
+/** Top N servicios más excepcionados (CMDB / dashboard). */
+export async function topServiciosExcepcionados(
+  limit = 3,
+  isSandbox = false
+): Promise<ServicioTopStat[]> {
+  const rows = (await sql`
+    SELECT
+      s.id, s.clave, s.display_name,
+      count(DISTINCT e.id)::int AS total,
+      count(DISTINCT e.id) FILTER (
+        WHERE e.estado IN ('Pendiente', 'Aprobada')
+      )::int AS activas
+    FROM sujetos s
+    INNER JOIN excepcion_sujeto es ON es.sujeto_id = s.id
+    INNER JOIN excepciones e ON e.id = es.excepcion_id AND e.is_sandbox = ${isSandbox}
+    WHERE s.tipo = 'servicio'
+      AND s.is_sandbox = ${isSandbox}
+    GROUP BY s.id, s.clave, s.display_name
+    ORDER BY activas DESC, total DESC, s.display_name ASC
+    LIMIT ${limit}
+  `) as Array<{
+    id: string;
+    clave: string;
+    display_name: string;
+    total: number;
+    activas: number;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    clave: r.clave,
+    display_name: r.display_name || r.clave,
+    total: Number(r.total) || 0,
+    activas: Number(r.activas) || 0,
+  }));
 }

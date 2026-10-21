@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { enabled: sandboxEnabled } = useSandbox();
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname.startsWith("/feeds/")) {
     return <>{children}</>;
   }
 
@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
                 IT · Excepciones
               </p>
-              <h1 className="mt-0.5 truncate text-lg font-semibold text-foreground">
+              <h1 className="mt-0.5 truncate text-base font-semibold text-foreground">
                 Gestor de Excepciones
               </h1>
             </div>
@@ -58,7 +58,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 md:p-8">{children}</main>
+        <main className="flex-1 px-4 py-5 md:px-6 md:py-6 lg:px-8">
+          {children}
+        </main>
       </div>
       <CommandPalette />
     </div>

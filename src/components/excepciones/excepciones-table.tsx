@@ -374,7 +374,7 @@ export function ExcepcionesTable({ dominioFijo }: Props) {
                       className="cursor-pointer"
                       onClick={() => router.push(`/excepciones/${exc.id}`)}
                     >
-                      <TableCell className="pl-4 font-mono text-sm font-medium">
+                      <TableCell className="pl-4 font-mono text-xs font-medium">
                         <Link
                           href={`/excepciones/${exc.id}`}
                           className="text-primary hover:underline"

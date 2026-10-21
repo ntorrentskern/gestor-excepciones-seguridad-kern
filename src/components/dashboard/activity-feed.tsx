@@ -1,25 +1,24 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import {
-  AlertTriangle,
-  CalendarClock,
-  CheckCircle2,
-  FilePlus2,
-  RotateCcw,
-  XCircle,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { EventoBadge } from "@/components/excepciones/estado-badge";
 import { useExcepciones } from "@/context/excepciones-context";
+import {
+  AUDIT_BOX_STYLES,
+  AUDIT_TONE_STYLES,
+  metaEventoAuditoria,
+} from "@/lib/auditoria/meta";
 import { cn } from "@/lib/utils";
 import {
   TIPOS_EXCEPCION_CORTO,
@@ -27,50 +26,13 @@ import {
   type TipoExcepcion,
 } from "@/types/excepcion";
 
-type Tone = "green" | "amber" | "red" | "blue";
-
 interface ActivityItem {
   id: string;
-  title: string;
+  excepcionId: string;
+  tipo: TipoEventoAuditoria;
   detail: string;
   time: string;
   timestamp: string;
-  tone: Tone;
-  icon: LucideIcon;
-}
-
-const toneStyles: Record<Tone, string> = {
-  green: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
-  amber: "bg-amber-500/12 text-amber-700 dark:text-amber-400",
-  red: "bg-rose-500/12 text-rose-700 dark:text-rose-400",
-  blue: "bg-sky-500/12 text-sky-700 dark:text-sky-400",
-};
-
-function metaEvento(tipo: TipoEventoAuditoria): {
-  tone: Tone;
-  icon: LucideIcon;
-  titlePrefix: string;
-} {
-  switch (tipo) {
-    case "Creada":
-      return { tone: "blue", icon: FilePlus2, titlePrefix: "Alta" };
-    case "Aprobada":
-      return { tone: "green", icon: CheckCircle2, titlePrefix: "Aprobada" };
-    case "Rechazada":
-      return { tone: "red", icon: XCircle, titlePrefix: "Rechazada" };
-    case "Cancelada":
-      return { tone: "red", icon: AlertTriangle, titlePrefix: "Cerrada" };
-    case "Ampliada":
-      return { tone: "amber", icon: CalendarClock, titlePrefix: "Ampliada" };
-    case "Reactivada":
-      return { tone: "green", icon: RotateCcw, titlePrefix: "Reactivada" };
-    case "Caducada":
-      return { tone: "amber", icon: AlertTriangle, titlePrefix: "Caducada" };
-    case "Editada":
-      return { tone: "blue", icon: FilePlus2, titlePrefix: "Editada" };
-    default:
-      return { tone: "blue", icon: FilePlus2, titlePrefix: tipo };
-  }
 }
 
 function formatearRelativo(iso: string): string {
@@ -96,15 +58,13 @@ export function ActivityFeed() {
         exc.tipo_excepcion;
 
       for (const evento of exc.historial) {
-        const meta = metaEvento(evento.tipo);
         flattened.push({
           id: evento.id,
-          title: `${meta.titlePrefix} ${exc.id}`,
+          excepcionId: exc.id,
+          tipo: evento.tipo,
           detail: `${evento.actor_email} · ${tipoCorto}`,
           time: formatearRelativo(evento.timestamp),
           timestamp: evento.timestamp,
-          tone: meta.tone,
-          icon: meta.icon,
         });
       }
     }
@@ -116,13 +76,20 @@ export function ActivityFeed() {
 
   return (
     <Card className="h-full shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base">Actividad reciente del sistema</CardTitle>
-        <CardDescription>
-          Últimos eventos de auditoría en Neon.
-        </CardDescription>
+      <CardHeader className="space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <CardTitle className="text-base">Actividad reciente</CardTitle>
+          </div>
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link href="/auditoria">
+              Ver todos
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2">
         {loading ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Cargando actividad…
@@ -133,32 +100,40 @@ export function ActivityFeed() {
           </p>
         ) : (
           items.map((item) => {
-            const Icon = item.icon;
+            const meta = metaEventoAuditoria(item.tipo);
+            const Icon = meta.icon;
             return (
-              <div
+              <Link
                 key={item.id}
-                className="flex gap-3 rounded-xl border border-border/70 bg-muted/30 p-3"
+                href={`/excepciones/${item.excepcionId}`}
+                className={cn(
+                  "flex gap-3 rounded-xl border p-2.5 transition-opacity hover:opacity-90",
+                  AUDIT_BOX_STYLES[meta.tone]
+                )}
               >
                 <div
                   className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                    toneStyles[item.tone]
+                    "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                    AUDIT_TONE_STYLES[meta.tone]
                   )}
                 >
-                  <Icon className="size-4" aria-hidden />
+                  <Icon className="size-3.5" aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    {item.title}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <EventoBadge tipo={item.tipo} />
+                    <p className="font-mono text-xs font-medium">
+                      {item.excepcionId}
+                    </p>
+                  </div>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {item.detail}
                   </p>
-                  <p className="mt-1 text-[11px] font-medium text-muted-foreground/80">
+                  <p className="mt-0.5 text-[11px] text-muted-foreground/80">
                     {item.time}
                   </p>
                 </div>
-              </div>
+              </Link>
             );
           })
         )}

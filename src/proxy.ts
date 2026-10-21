@@ -7,8 +7,10 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = decodeSession(token);
   const isLogin = pathname === "/login";
+  /** Feeds IOC para firewall: sin sesión (opcionalmente ?token=). */
+  const isIocFeed = pathname.startsWith("/feeds/ioc/");
 
-  if (!session && !isLogin) {
+  if (!session && !isLogin && !isIocFeed) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";

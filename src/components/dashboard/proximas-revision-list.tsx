@@ -41,11 +41,7 @@ export function ProximasRevisionList() {
               Excepciones próximas a revisión
             </CardTitle>
             <CardDescription className="mt-1 text-muted-foreground">
-              Activas con{" "}
-              <span className="font-medium text-orange-800 dark:text-orange-300">
-                fecha_revision ≤ 14 días
-              </span>{" "}
-              desde hoy. Prioriza renovación o cierre.
+              Revisión en los próximos 14 días.
             </CardDescription>
           </div>
         </div>
@@ -83,16 +79,16 @@ export function ProximasRevisionList() {
                         : "bg-orange-50/30 dark:bg-orange-500/10"
                     )}
                   >
-                    <TableCell className="font-medium">
+                    <TableCell>
                       <Link
                         href={`/excepciones/${exc.id}`}
-                        className="font-mono text-sm text-primary hover:underline"
+                        className="font-mono text-xs text-primary hover:underline"
                       >
                         {exc.id}
                       </Link>
                     </TableCell>
-                    <TableCell>{exc.tipo_excepcion}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">
+                    <TableCell className="text-sm">{exc.tipo_excepcion}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
                       {exc.activo_afectado}
                     </TableCell>
                     <TableCell>

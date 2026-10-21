@@ -95,12 +95,10 @@ export function AjustesPerfilForm() {
   }
 
   return (
-    <Card className="mx-auto max-w-2xl shadow-none">
+    <Card className="shadow-none">
       <CardHeader>
         <CardTitle className="text-base">Perfil de usuario</CardTitle>
-        <CardDescription>
-          Actualiza tus datos. Los cambios se aplican todos al pulsar Guardar.
-        </CardDescription>
+        <CardDescription>Datos de la cuenta.</CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
         <CardContent className="grid gap-5 sm:grid-cols-2">
@@ -136,10 +134,6 @@ export function AjustesPerfilForm() {
           <div className="space-y-2 sm:col-span-2">
             <p className="text-sm font-medium text-foreground">
               Cambiar contraseña
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Déjalo vacío si no quieres cambiarla. Si la cambias, indica la
-              actual y la nueva.
             </p>
           </div>
 

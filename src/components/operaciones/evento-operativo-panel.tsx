@@ -290,12 +290,12 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
   const esCambio = data.tipo === "CambioDispositivo";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto w-full max-w-[1200px] space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           Evento operativo
         </p>
-        <h2 className="text-2xl font-semibold">
+        <h2 className="text-xl font-semibold">
           {TIPO_EVENTO_OPERATIVO_LABELS[data.tipo]}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -417,7 +417,7 @@ export function EventoOperativoDetalleView({ id }: { id: string }) {
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={`/excepciones/${e.id}`}
-                        className="font-mono text-sm font-medium text-primary hover:underline"
+                        className="font-mono text-xs font-medium text-primary hover:underline"
                       >
                         {e.id}
                       </Link>

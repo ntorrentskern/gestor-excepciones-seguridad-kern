@@ -7,11 +7,20 @@ import {
   globalSearch,
   listExcepcionesBySujeto,
   listSujetosByExcepcion,
+  listSujetosCatalog,
   listSujetosRelacionados,
+  searchServicios,
   searchSujetos,
+  topServiciosExcepcionados,
   type ExcepcionResumenSujeto,
+  type ServicioTopStat,
 } from "@/lib/sujetos/repository";
-import type { GlobalSearchResult, Sujeto, SujetoConStats } from "@/types/sujeto";
+import type {
+  GlobalSearchResult,
+  Sujeto,
+  SujetoConStats,
+  TipoSujeto,
+} from "@/types/sujeto";
 
 export async function searchGlobalAction(
   query: string
@@ -49,4 +58,28 @@ export async function listSujetosDeExcepcionAction(
 ): Promise<Sujeto[]> {
   await requireCurrentUser();
   return listSujetosByExcepcion(excepcionId);
+}
+
+export async function searchServiciosAction(
+  query: string
+): Promise<SujetoConStats[]> {
+  await requireCurrentUser();
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+  return searchServicios(query, 12, sandboxMode);
+}
+
+export async function listCmdbCatalogAction(
+  tipo: TipoSujeto
+): Promise<SujetoConStats[]> {
+  await requireCurrentUser();
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+  return listSujetosCatalog(tipo, 50, sandboxMode);
+}
+
+export async function topServiciosAction(
+  limit = 3
+): Promise<ServicioTopStat[]> {
+  await requireCurrentUser();
+  const sandboxMode = (await resolveSandboxFilter()) ?? false;
+  return topServiciosExcepcionados(limit, sandboxMode);
 }

@@ -46,6 +46,7 @@ import {
 } from "@/types/excepcion";
 import { canSetEstadoManual } from "@/types/roles";
 import { SujetosPicker } from "@/components/sujetos/sujetos-picker";
+import { ServiciosPicker } from "@/components/sujetos/servicios-picker";
 import { AprobadorSelect } from "@/components/excepciones/aprobador-select";
 import {
   mergeSujetosAutoManual,
@@ -201,7 +202,10 @@ export function NuevaExcepcionForm() {
     Array<{ id: string; usuario: string; pc: string }> | null
   >(null);
   const [manualSujetos, setManualSujetos] = useState<SujetoInput[]>(() =>
-    prefill.sujetos.filter((s) => !s.auto)
+    prefill.sujetos.filter((s) => !s.auto && s.tipo !== "servicio")
+  );
+  const [servicios, setServicios] = useState<SujetoInput[]>(() =>
+    prefill.sujetos.filter((s) => s.tipo === "servicio")
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -243,13 +247,6 @@ export function NuevaExcepcionForm() {
 
   const tiposDisponibles = tiposDeDominio(form.dominio);
   const muestraJira = form.origen_solicitud === "Jira";
-
-  const ayudaRevision = useMemo(() => {
-    if (form.temporalidad === "Temporal") {
-      return "Por defecto: 6 meses desde hoy (editable).";
-    }
-    return "Por defecto: 12 meses desde hoy (editable).";
-  }, [form.temporalidad]);
 
   function resolveAprobador(): string | null {
     if (form.aprobador_opcion === APROBADOR_OTRA_OPCION) {
@@ -319,6 +316,7 @@ export function NuevaExcepcionForm() {
             usuarioAfectado: par.usuario,
             equipoAfectado: par.pc,
             manual: manualSujetos,
+            servicios,
           });
           return {
             ...compartido,
@@ -351,7 +349,7 @@ export function NuevaExcepcionForm() {
 
   if (creadas && creadas.length > 1) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 rounded-2xl border border-border bg-card p-6">
+      <div className="mx-auto w-full max-w-[1100px] space-y-4 rounded-2xl border border-border bg-card p-6">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">
             {creadas.length} excepciones creadas
@@ -388,7 +386,7 @@ export function NuevaExcepcionForm() {
   ).length;
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-5">
+    <form onSubmit={onSubmit} className="mx-auto w-full max-w-[1100px] space-y-5">
       <Section
         icon={Shield}
         title="Clasificación"
@@ -465,7 +463,7 @@ export function NuevaExcepcionForm() {
       <Section
         icon={User}
         title="Usuarios y equipos"
-        description="Una fila por usuario y su PC. Si hay varias, se crea una excepción distinta por fila, con la misma justificación y fechas."
+        description="Usuario y equipo afectados."
         accent="bg-sky-500/10 text-sky-700 dark:text-sky-300"
       >
         <Field className="sm:col-span-2">
@@ -565,33 +563,27 @@ export function NuevaExcepcionForm() {
             <Plus className="size-4" />
             Añadir usuario
           </Button>
-          <p className="text-xs text-muted-foreground">
-            {filasConDatos > 1
-              ? `Se crearán ${filasConDatos} excepciones, cada una con su ID y solo el usuario y el PC de su fila.`
-              : "El usuario es el titular del PC. Quien abre el ticket, si es otra persona, va en «Solicitado por»."}
-          </p>
+          {filasConDatos > 1 ? (
+            <p className="text-xs text-muted-foreground">
+              Se crearán {filasConDatos} excepciones.
+            </p>
+          ) : null}
         </Field>
 
         <Field className="sm:col-span-2">
-          <Label htmlFor="solicitado-por">
-            Solicitado por{" "}
-            <span className="font-normal text-muted-foreground">
-              (opcional · si no es el usuario afectado)
-            </span>
-          </Label>
+          <Label htmlFor="solicitado-por">Solicitado por</Label>
           <Input
             id="solicitado-por"
             value={form.solicitado_por}
             onChange={(e) =>
               setForm((f) => ({ ...f, solicitado_por: e.target.value }))
             }
-            placeholder="Ej. Ana (Helpdesk), ticket HD-123…"
             className="h-11"
           />
-          <p className="text-xs text-muted-foreground">
-            Se guarda como comentario en el historial, sin mezclarse con la
-            correlación usuario ↔ equipo.
-          </p>
+        </Field>
+
+        <Field className="sm:col-span-2">
+          <ServiciosPicker value={servicios} onChange={setServicios} />
         </Field>
 
         <Field className="sm:col-span-2">
@@ -599,11 +591,6 @@ export function NuevaExcepcionForm() {
             value={manualSujetos}
             onChange={setManualSujetos}
             soloOtro
-            hint={
-              filasConDatos > 1
-                ? "Estos vínculos extra se copian en cada excepción. El usuario y su PC van solo en la suya."
-                : "El usuario y el PC se vinculan solos desde la fila de arriba. Aquí solo añades vínculos «Otro» (ticket, ubicación…)."
-            }
           />
         </Field>
       </Section>
@@ -697,7 +684,7 @@ export function NuevaExcepcionForm() {
           <Field>
             <Label>Estado inicial</Label>
             <p className="flex h-11 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
-              Pendiente (requiere aprobación)
+              Pendiente
             </p>
           </Field>
         )}
@@ -740,7 +727,6 @@ export function NuevaExcepcionForm() {
             }
             className="h-11"
           />
-          <p className="text-xs text-muted-foreground">{ayudaRevision}</p>
         </Field>
 
         <Field className="sm:col-span-2">
@@ -772,7 +758,6 @@ export function NuevaExcepcionForm() {
             onChange={(e) =>
               setForm((f) => ({ ...f, justificacion: e.target.value }))
             }
-            placeholder="Describe el motivo de negocio…"
             className="min-h-[100px] resize-y"
           />
         </Field>
@@ -789,7 +774,6 @@ export function NuevaExcepcionForm() {
                 control_compensatorio: e.target.value,
               }))
             }
-            placeholder="Mitigaciones: logs, allowlist, cifrado, supervisión…"
             className="resize-y"
           />
         </Field>

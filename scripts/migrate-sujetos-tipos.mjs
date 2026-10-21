@@ -117,7 +117,7 @@ if (!hasCheck[0]) {
   await sql`
     ALTER TABLE sujetos
     ADD CONSTRAINT sujetos_tipo_check
-    CHECK (tipo IN ('usuario', 'activo', 'otro'))
+    CHECK (tipo IN ('usuario', 'activo', 'servicio', 'otro'))
   `;
   console.log("  add constraint sujetos_tipo_check");
 } else {
@@ -132,7 +132,7 @@ const tipos = await sql`
 `;
 
 const invalid = tipos.filter(
-  (t) => !["usuario", "activo", "otro"].includes(t.tipo)
+  (t) => !["usuario", "activo", "servicio", "otro"].includes(t.tipo)
 );
 
 console.log(
@@ -151,4 +151,6 @@ if (invalid.length) {
   process.exit(1);
 }
 
-console.log("Constraint sujetos_tipo_check = usuario | activo | otro");
+console.log(
+  "Constraint sujetos_tipo_check = usuario | activo | servicio | otro"
+);

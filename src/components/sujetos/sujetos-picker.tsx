@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Laptop, Plus, Tag, User, X } from "lucide-react";
+import { AppWindow, Laptop, Plus, Tag, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +41,13 @@ function Chip({
   onRemove?: () => void;
 }) {
   const Icon =
-    item.tipo === "usuario" ? User : item.tipo === "activo" ? Laptop : Tag;
+    item.tipo === "usuario"
+      ? User
+      : item.tipo === "activo"
+        ? Laptop
+        : item.tipo === "servicio"
+          ? AppWindow
+          : Tag;
   return (
     <li
       className={cn(
@@ -88,7 +94,7 @@ export function SujetosPicker({
 
   const tiposDisponibles = soloOtro
     ? (["otro"] as TipoSujeto[])
-    : TIPOS_SUJETO;
+    : (TIPOS_SUJETO.filter((t) => t !== "servicio") as TipoSujeto[]);
 
   function add() {
     const raw = clave.trim();
@@ -126,10 +132,9 @@ export function SujetosPicker({
     <div className={cn("space-y-3", className)}>
       <div>
         <Label>Vínculos</Label>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {hint ??
-            "Usuario y Activo se crean solos desde el titular y su equipo. Aquí solo añades vínculos «Otro» (ticket, ubicación…)."}
-        </p>
+        {hint ? (
+          <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+        ) : null}
       </div>
 
       {hasAny ? (
@@ -145,11 +150,7 @@ export function SujetosPicker({
             />
           ))}
         </ul>
-      ) : (
-        <p className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-          Todavía no hay vínculos. Escribe un usuario o equipo afectado.
-        </p>
-      )}
+      ) : null}
 
       <div className="grid gap-2 sm:grid-cols-[140px_1fr_auto]">
         <Select

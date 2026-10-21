@@ -69,7 +69,7 @@ export default function DemoPage() {
             Sandbox
           </p>
         </div>
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
           Modo demo
         </h2>
         <p className="text-sm text-muted-foreground">

@@ -1,7 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
-import { AlertTriangle, ClipboardList, Clock3 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  ClipboardList,
+  Clock3,
+  Globe,
+  Network,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -26,6 +33,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useExcepciones } from "@/context/excepciones-context";
+import { getIocStatsAction } from "@/lib/ioc/actions";
+import type { IocStats } from "@/types/ioc";
 import {
   DOMINIO_LABELS,
   DOMINIOS,
@@ -56,6 +65,21 @@ const tipoChartConfig = {
 
 export function DashboardStats() {
   const { excepciones, stats, loading } = useExcepciones();
+  const [iocStats, setIocStats] = useState<IocStats | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getIocStatsAction()
+      .then((s) => {
+        if (!cancelled) setIocStats(s);
+      })
+      .catch(() => {
+        if (!cancelled) setIocStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const estadoData = useMemo(() => {
     return ESTADOS_EXCEPCION.map((estado) => ({
@@ -128,7 +152,7 @@ export function DashboardStats() {
                   <CardDescription className="text-xs font-medium uppercase tracking-wide">
                     {item.title}
                   </CardDescription>
-                  <CardTitle className="mt-2 font-sans text-3xl font-semibold tabular-nums tracking-tight">
+                  <CardTitle className="mt-2 font-sans text-xl font-semibold tabular-nums tracking-tight">
                     {loading ? "—" : item.value}
                   </CardTitle>
                 </div>
@@ -153,7 +177,7 @@ export function DashboardStats() {
               <CardDescription className="text-xs font-medium uppercase tracking-wide">
                 {item.title}
               </CardDescription>
-              <CardTitle className="mt-1 text-2xl font-semibold tabular-nums">
+              <CardTitle className="mt-1 text-xl font-semibold tabular-nums">
                 {loading ? "—" : item.value}
               </CardTitle>
             </CardHeader>
@@ -164,6 +188,55 @@ export function DashboardStats() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/ioc/dominios" className="block">
+          <Card className="h-full shadow-none transition-colors hover:border-primary/40">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <div>
+                <CardDescription className="text-xs font-medium uppercase tracking-wide">
+                  Dominios IOC en feed
+                </CardDescription>
+                <CardTitle className="mt-2 text-xl font-semibold tabular-nums">
+                  {iocStats ? iocStats.dominiosActivos : "—"}
+                </CardTitle>
+              </div>
+              <div className="flex size-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-700 dark:text-violet-300">
+                <Globe className="size-5" aria-hidden />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {iocStats ? `${iocStats.dominios} totales` : "—"}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/ioc/ips" className="block">
+          <Card className="h-full shadow-none transition-colors hover:border-primary/40">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <div>
+                <CardDescription className="text-xs font-medium uppercase tracking-wide">
+                  IPs IOC en feed
+                </CardDescription>
+                <CardTitle className="mt-2 text-xl font-semibold tabular-nums">
+                  {iocStats ? iocStats.ipsActivas : "—"}
+                </CardTitle>
+              </div>
+              <div className="flex size-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300">
+                <Network className="size-5" aria-hidden />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                {iocStats
+                  ? `${iocStats.ips} totales`
+                  : "—"}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

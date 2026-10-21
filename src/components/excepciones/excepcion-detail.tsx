@@ -36,8 +36,9 @@ import { useAuth } from "@/context/auth-context";
 import { useExcepciones } from "@/context/excepciones-context";
 import { listSujetosDeExcepcionAction } from "@/lib/sujetos/actions";
 import { SujetosPicker } from "@/components/sujetos/sujetos-picker";
+import { ServiciosPicker } from "@/components/sujetos/servicios-picker";
 import type { Sujeto, SujetoInput } from "@/types/sujeto";
-import { TIPO_SUJETO_LABELS } from "@/types/sujeto";
+import { mergeSujetosAutoManual, TIPO_SUJETO_LABELS } from "@/types/sujeto";
 import {
   diasHastaRevision,
   fechaAmpliacionPorDefecto,
@@ -145,6 +146,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [sujetos, setSujetos] = useState<Sujeto[]>([]);
   const [editSujetos, setEditSujetos] = useState<SujetoInput[]>([]);
+  const [editServicios, setEditServicios] = useState<SujetoInput[]>([]);
   const [motivo, setMotivo] = useState("");
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [busy, setBusy] = useState(false);
@@ -175,15 +177,36 @@ export function ExcepcionDetail({ id }: { id: string }) {
   useEffect(() => {
     if (excepcion && editing) {
       setEditForm(toEditForm(excepcion));
+      setEditServicios(
+        sujetos
+          .filter((s) => s.tipo === "servicio")
+          .map((s) => ({
+            tipo: "servicio" as const,
+            clave: s.clave,
+            display_name: s.display_name,
+            auto: true,
+          }))
+      );
       setEditSujetos(
-        sujetos.map((s) => ({
-          tipo: s.tipo,
-          clave: s.clave,
-          display_name: s.display_name,
-        }))
+        sujetos
+          .filter((s) => s.tipo === "otro")
+          .map((s) => ({
+            tipo: s.tipo,
+            clave: s.clave,
+            display_name: s.display_name,
+          }))
       );
     }
   }, [excepcion, editing, sujetos]);
+
+  const serviciosVinculados = useMemo(
+    () => sujetos.filter((s) => s.tipo === "servicio"),
+    [sujetos]
+  );
+  const otrosVinculos = useMemo(
+    () => sujetos.filter((s) => s.tipo !== "servicio"),
+    [sujetos]
+  );
 
   const dias = useMemo(
     () => (excepcion ? diasHastaRevision(excepcion.fecha_revision) : 0),
@@ -316,6 +339,12 @@ export function ExcepcionDetail({ id }: { id: string }) {
     setError(null);
     setOkMsg(null);
     try {
+      const sujetosMerged = mergeSujetosAutoManual({
+        usuarioAfectado: editForm.solicitante_email,
+        equipoAfectado: editForm.activo_afectado,
+        manual: editSujetos,
+        servicios: editServicios,
+      });
       await editar(excepcion.id, {
         ...editForm,
         jira_ticket_id:
@@ -324,7 +353,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
             : null,
         actorEmail,
         motivo: editForm.motivo.trim() || undefined,
-        sujetos: editSujetos,
+        sujetos: sujetosMerged,
       });
       setOkMsg("Cambios guardados. Quedan registrados en auditoría.");
       setEditing(false);
@@ -379,7 +408,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
     can("reactivate", excepcion.dominio);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto w-full max-w-[1100px] space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <Button
@@ -392,7 +421,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
             Volver
           </Button>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-mono text-2xl font-semibold tracking-tight text-foreground">
+            <h2 className="font-mono text-base font-semibold tracking-tight text-foreground">
               {excepcion.id}
             </h2>
             <EstadoBadge estado={excepcion.estado} />
@@ -472,6 +501,30 @@ export function ExcepcionDetail({ id }: { id: string }) {
 
       {editing && editForm ? (
         <div className="space-y-5">
+          <div className="sticky top-16 z-20 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-card/95 px-4 py-3 shadow-sm backdrop-blur-md">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Editando excepción
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditing(false);
+                  setEditForm(null);
+                  setError(null);
+                }}
+                disabled={busy}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={() => void saveEdit()} disabled={busy}>
+                {busy ? "Guardando…" : "Guardar cambios"}
+              </Button>
+            </div>
+          </div>
+
           <FormSection
             icon={Shield}
             title="Clasificación"
@@ -625,7 +678,17 @@ export function ExcepcionDetail({ id }: { id: string }) {
               />
             </FormField>
             <FormField className="sm:col-span-2">
-              <SujetosPicker value={editSujetos} onChange={setEditSujetos} />
+              <ServiciosPicker
+                value={editServicios}
+                onChange={setEditServicios}
+              />
+            </FormField>
+            <FormField className="sm:col-span-2">
+              <SujetosPicker
+                value={editSujetos}
+                onChange={setEditSujetos}
+                soloOtro
+              />
             </FormField>
           </FormSection>
 
@@ -758,7 +821,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
                     f ? { ...f, motivo: e.target.value } : f
                   )
                 }
-                placeholder="Ej. Corrección de tipografía en activos…"
+                placeholder="Motivo de la edición"
               />
             </FormField>
           </FormSection>
@@ -768,10 +831,7 @@ export function ExcepcionDetail({ id }: { id: string }) {
               {error}
             </p>
           ) : null}
-          <div className="flex gap-2">
-            <Button onClick={() => void saveEdit()} disabled={busy}>
-              {busy ? "Guardando…" : "Guardar cambios"}
-            </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-border bg-muted/40 px-4 py-3">
             <Button
               variant="outline"
               onClick={() => {
@@ -782,6 +842,9 @@ export function ExcepcionDetail({ id }: { id: string }) {
               disabled={busy}
             >
               Cancelar edición
+            </Button>
+            <Button onClick={() => void saveEdit()} disabled={busy}>
+              {busy ? "Guardando…" : "Guardar cambios"}
             </Button>
           </div>
         </div>
@@ -898,15 +961,37 @@ export function ExcepcionDetail({ id }: { id: string }) {
             </FormField>
             <FormField className="sm:col-span-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Vínculos
+                Servicios excepcionados
               </p>
-              {sujetos.length === 0 ? (
+              {serviciosVinculados.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Ninguno (opcional).
+                </p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {serviciosVinculados.map((s) => (
+                    <Link
+                      key={s.id}
+                      href={`/sujetos/${s.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300/60 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-950 hover:border-violet-400 dark:border-violet-500/40 dark:text-violet-100"
+                    >
+                      <span className="font-medium">{s.display_name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </FormField>
+            <FormField className="sm:col-span-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Vínculos CMDB
+              </p>
+              {otrosVinculos.length === 0 ? (
                 <p className="mt-1 text-sm text-muted-foreground">
                   Sin vínculos (se generan al editar o crear).
                 </p>
               ) : (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {sujetos.map((s) => (
+                  {otrosVinculos.map((s) => (
                     <Link
                       key={s.id}
                       href={`/sujetos/${s.id}`}

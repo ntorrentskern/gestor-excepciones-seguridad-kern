@@ -61,11 +61,11 @@ CREATE INDEX IF NOT EXISTS idx_eventos_excepcion_id
 CREATE INDEX IF NOT EXISTS idx_eventos_timestamp
   ON eventos_auditoria ("timestamp" DESC);
 
--- Sujetos correlacionables (Usuario, Activo, Otro)
+-- Sujetos correlacionables (Usuario, Activo, Servicio, Otro)
 CREATE TABLE IF NOT EXISTS sujetos (
   id TEXT PRIMARY KEY,
   tipo TEXT NOT NULL
-    CHECK (tipo IN ('usuario', 'activo', 'otro')),
+    CHECK (tipo IN ('usuario', 'activo', 'servicio', 'otro')),
   clave TEXT NOT NULL,
   display_name TEXT NOT NULL DEFAULT '',
   notas TEXT NOT NULL DEFAULT '',
@@ -119,3 +119,25 @@ CREATE TABLE IF NOT EXISTS evento_operativo_excepcion (
   revisada BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (evento_id, excepcion_id)
 );
+
+-- IOC (indicadores de compromiso) para feeds de firewall
+CREATE TABLE IF NOT EXISTS iocs (
+  id TEXT PRIMARY KEY,
+  tipo TEXT NOT NULL
+    CHECK (tipo IN ('ip', 'dominio')),
+  valor TEXT NOT NULL,
+  notas TEXT NOT NULL DEFAULT '',
+  fuente TEXT NOT NULL DEFAULT '',
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_iocs_tipo_valor
+  ON iocs (tipo, lower(valor));
+
+CREATE INDEX IF NOT EXISTS idx_iocs_tipo_activo
+  ON iocs (tipo, activo);
+
+CREATE INDEX IF NOT EXISTS idx_iocs_valor_lower
+  ON iocs (lower(valor));

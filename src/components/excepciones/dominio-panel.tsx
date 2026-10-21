@@ -34,13 +34,13 @@ export function DominioPanel({ dominio }: { dominio: Dominio }) {
   const copy = PANEL_COPY[dominio];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             {DOMINIO_LABELS[dominio]}
           </p>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
             {copy.title}
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">

@@ -74,13 +74,12 @@ export function OperacionesListado() {
   }, [items]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Operaciones</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Operaciones</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Bajas de usuario y cambios de dispositivo en curso. Aquí vuelves
-            siempre a los checklists pendientes de validar.
+            Bajas de usuario y cambios de dispositivo.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -91,13 +90,13 @@ export function OperacionesListado() {
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Card className="shadow-none">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs uppercase tracking-wide">
-              Abiertos (filtro actual)
+              Abiertos
             </CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
+            <CardTitle className="text-xl tabular-nums">
               {loading ? "—" : resumen.abiertos}
             </CardTitle>
           </CardHeader>
@@ -107,18 +106,8 @@ export function OperacionesListado() {
             <CardDescription className="text-xs uppercase tracking-wide">
               Excepciones por revisar
             </CardDescription>
-            <CardTitle className="text-3xl tabular-nums text-amber-700 dark:text-amber-400">
+            <CardTitle className="text-xl tabular-nums text-amber-700 dark:text-amber-400">
               {loading ? "—" : resumen.pendientesItems}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="shadow-none">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase tracking-wide">
-              Cómo crear uno
-            </CardDescription>
-            <CardTitle className="text-sm font-medium leading-snug">
-              Busca la ficha → Baja / Cambio de dispositivo
             </CardTitle>
           </CardHeader>
         </Card>
